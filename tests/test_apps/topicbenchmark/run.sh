@@ -97,6 +97,8 @@ function server_common() {
     echo
     echo "VOLTDB_BIN=\"${VOLTDB_BIN}\""
     echo
+    echo "LOG4J=\"${LOG4J}\""    
+    echo
     VOLTDB_OPTS="${VOLTDB_OPTS}" ${VOLTDB} start -H $HOST -l ${LICENSE}
 }
 
@@ -129,7 +131,7 @@ function run_benchmark_10x() {
     java -classpath topicbenchmark-client.jar:$CLIENTCLASSPATH -Dlog4j.configuration=file://$LOG4J \
         topicbenchmark.TopicBenchmark \
         --duration=30 \
-	      --multiply=10 \
+	    --multiply=10 \
         --servers=localhost
 }
 
@@ -138,7 +140,16 @@ function run_benchmark_100x() {
     java -classpath topicbenchmark-client.jar:$CLIENTCLASSPATH -Dlog4j.configuration=file://$LOG4J \
         topicbenchmark.TopicBenchmark \
         --duration=300 \
-	      --multiply=100 \
+	    --multiply=100 \
+        --servers=localhost
+}
+
+function run_benchmark_10k_100x() {
+    srccompile-ifneeded
+    java -classpath topicbenchmark-client.jar:$CLIENTCLASSPATH -Dlog4j.configuration=file:/$LOG4J \
+        topicbenchmark.TopicBenchmark \
+	    --count=10000 \
+	    --multiply=100 \
         --servers=localhost
 }
 

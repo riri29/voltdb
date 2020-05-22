@@ -65,7 +65,8 @@ import org.voltdb.client.ProcedureCallback;
  */
 public class TopicBenchmark {
 
-    static VoltLogger log = new VoltLogger("TopicBenchmark");
+    static VoltLogger log = new VoltLogger("ExportBenchmark");
+    // static VoltLogger log = new VoltLogger("TopicBenchmark");
     // handy, rather than typing this out several times
     static final String HORIZONTAL_RULE =
             "----------" + "----------" + "----------" + "----------" +
@@ -223,7 +224,7 @@ public class TopicBenchmark {
         VoltTable stats = null;
         while (retryStats-- > 0) {
             try {
-                stats = client.callProcedure("@Statistics", "topics", 0).getResults()[0];
+                stats = client.callProcedure("@Statistics", "topic", 0).getResults()[0];
                 break;
             } catch (ProcCallException e) {
                 log.warn("Error while calling procedures: ");
@@ -351,7 +352,7 @@ public class TopicBenchmark {
                 break;
             }
             //If we are count based use count.
-            if ( (config.count > 0) && (totalInserts > config.count) ) {
+            if ( (config.count > 0) && (totalInserts >= config.count) ) {
                 break;
             }
 
