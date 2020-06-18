@@ -20,6 +20,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -172,9 +173,9 @@ public class ExportGeneration implements Generation {
 
         List<Integer> onDiskPartitions = new ArrayList<Integer>();
         NavigableSet<Table> streams = CatalogUtil.getExportTablesExcludeViewOnly(connectors);
-        Set<String> exportedTables = new HashSet<>();
+        HashMap<String, Table> exportedTables = new HashMap<>();
         for (Table stream : streams) {
-            exportedTables.add(stream.getTypeName());
+            exportedTables.put(stream.getTypeName(), stream);
         }
         /*
          * Find all the data files. Once one is found, extract the nonce
@@ -188,7 +189,12 @@ public class ExportGeneration implements Generation {
                 if (pbdName.m_nonce != null) {
                     String nonce = pbdName.m_nonce;
                     String streamName = getStreamNameFromNonce(nonce);
-                    if (exportedTables.contains(streamName)) {
+                    int partitionId = getPartitionIdFromNonce(nonce);
+                    // Normally we should only have data files for partition 0 for replicated tables.
+                    // But before fixing ENG-19757, we used to create data files for all partitions for replicated tables as well.
+                    // This added check below should clean up those files.
+                    if (exportedTables.containsKey(streamName) &&
+                            (!exportedTables.get(streamName).getIsreplicated() || partitionId == 0)) {
                         dataFiles.put(nonce, data);
                     } else {
                         // ENG-15740, stream can be dropped while node is offline, delete .pbd files
@@ -278,10 +284,11 @@ public class ExportGeneration implements Generation {
         NavigableSet<Table> streams = CatalogUtil.getExportTablesExcludeViewOnly(connectors);
         Set<String> exportedTables = new HashSet<>();
         for (Table stream : streams) {
-            addDataSources(stream, hostId, localPartitionsToSites, partitionsInUse,
-                    processor, catalogContext.m_genId, isCatalogUpdate);
-            exportedTables.add(stream.getTypeName());
-            createdSources = true;
+            if (addDataSources(stream, hostId, localPartitionsToSites, partitionsInUse,
+                               processor, catalogContext.m_genId, isCatalogUpdate)) {
+                exportedTables.add(stream.getTypeName());
+                createdSources = true;
+            }
         }
 
         updateStreamStatus(exportedTables);
@@ -657,14 +664,24 @@ public class ExportGeneration implements Generation {
      * @param partitionsInUse
      * @param processor
      */
-    private void addDataSources(Table table, int hostId,
+    private boolean addDataSources(Table table, int hostId,
             Map<Integer, Integer> localPartitionsToSites,
             Set<Integer> partitionsInUse,
             final ExportDataProcessor processor,
             final long genId,
             boolean isCatalogUpdate)
     {
-        for (Map.Entry<Integer, Integer> partitionAndSiteId : localPartitionsToSites.entrySet()) {
+        // For replicated sources, create only EDS for partition 0
+        if (table.getIsreplicated() && !localPartitionsToSites.containsKey(0)) {
+            return false;
+        }
+
+        Map<Integer, Integer> partitionsToSites = localPartitionsToSites;
+        if (table.getIsreplicated()) {
+            partitionsToSites = Collections.singletonMap(0, partitionsToSites.get(0));
+        }
+
+        for (Map.Entry<Integer, Integer> partitionAndSiteId : partitionsToSites.entrySet()) {
 
             /*
              * IOException can occur if there is a problem
@@ -733,6 +750,8 @@ public class ExportGeneration implements Generation {
                 }
             }
         }
+
+        return true;
     }
 
     /**
@@ -1094,6 +1113,11 @@ public class ExportGeneration implements Generation {
     private static String getStreamNameFromNonce(String nonce) {
         // it's possible the stream name contains underscore
         return nonce.substring(0, nonce.lastIndexOf('_'));
+    }
+
+    private static int getPartitionIdFromNonce(String nonce) {
+        // it's possible the stream name contains underscore
+        return Integer.parseInt(nonce.substring(nonce.lastIndexOf('_') + 1));
     }
 
     // Naming convention for ad file, [table name]_[partition].ad
