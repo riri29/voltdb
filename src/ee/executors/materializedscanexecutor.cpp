@@ -73,8 +73,7 @@ bool MaterializedScanExecutor::p_execute(const NValueArray &params) {
             if ((*iter).isNull() && outputCantBeNull) {
                 continue;
             }
-            tmptup.setNValue(0, *iter);
-            output_table->insertTuple(tmptup);
+            output_table->insertTuple(tmptup.setNValue(0, *iter));
         }
     } else {
         std::vector<NValue>::reverse_iterator reverse_iter;
@@ -82,8 +81,7 @@ bool MaterializedScanExecutor::p_execute(const NValueArray &params) {
             if ((*reverse_iter).isNull() && outputCantBeNull) {
                 continue;
             }
-            tmptup.setNValue(0, *reverse_iter);
-            output_table->insertTuple(tmptup);
+            output_table->insertTuple(tmptup.setNValue(0, *reverse_iter));
         }
     }
 
@@ -93,5 +91,3 @@ bool MaterializedScanExecutor::p_execute(const NValueArray &params) {
     return true;
 }
 
-MaterializedScanExecutor::~MaterializedScanExecutor() {
-}

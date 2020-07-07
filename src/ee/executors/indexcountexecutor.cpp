@@ -158,8 +158,8 @@ bool IndexCountExecutor::p_execute(const NValueArray &params) {
     bool searchKeyUnderflow = false, endKeyOverflow = false;
     // Overflow cases that can return early without accessing the index need this
     // default 0 count as their result.
-    TableTuple& tmptup = m_outputTable->tempTuple();
-    tmptup.setNValue(0, ValueFactory::getBigIntValue( 0 ));
+    TableTuple& tmptup = m_outputTable->tempTuple()
+        .setNValue(0, ValueFactory::getBigIntValue(0));
 
     bool earlyReturnForSearchKeyOutOfRange = false;
     //
@@ -404,8 +404,7 @@ bool IndexCountExecutor::p_execute(const NValueArray &params) {
     rkRes = rkEnd - rkStart - 1 + leftIncluded + rightIncluded;
     VOLT_DEBUG("Index Count ANSWER %ld = %ld - %ld - 1 + %d + %d\n",
             (long)rkRes, (long)rkEnd, (long)rkStart, leftIncluded, rightIncluded);
-    tmptup.setNValue(0, ValueFactory::getBigIntValue( rkRes ));
-    m_outputTable->insertTuple(tmptup);
+    m_outputTable->insertTuple(tmptup.setNValue(0, ValueFactory::getBigIntValue(rkRes)));
 
     VOLT_DEBUG ("Index Count :\n %s", m_outputTable->debug().c_str());
     return true;

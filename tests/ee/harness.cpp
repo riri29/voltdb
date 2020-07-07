@@ -261,7 +261,7 @@ ChTempDir::ChTempDir() : name_(P_tmpdir) {
 }
 
 std::string ChTempDir::tempFile(const std::string &prefix) const {
-    std::string file_template = this->name_ + "/" + prefix + "XXXXXX";
+    std::string file_template = name_ + "/" + prefix + "XXXXXX";
     int fd = mkstemp(const_cast<char*>(file_template.c_str()));
     assert(fd != -1);
     close(fd);

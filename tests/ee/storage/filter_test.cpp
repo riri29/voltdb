@@ -94,12 +94,12 @@ public:
         //::printf("making a test table...\n");
         TableTuple &tuple = table->tempTuple();
         for (int64_t i = 1; i <= TUPLES; ++i) {
-            tuple.setNValue(0, ValueFactory::getBigIntValue(i));
-            tuple.setNValue(1, ValueFactory::getBigIntValue(i % 2));
-            tuple.setNValue(2, ValueFactory::getBigIntValue(i % 3));
-            tuple.setNValue(3, ValueFactory::getBigIntValue(i % 5));
-            tuple.setNValue(4, ValueFactory::getBigIntValue(i % 7));
-            table->insertTuple(tuple);
+            table->insertTuple(
+                    tuple.setNValue(0, ValueFactory::getBigIntValue(i))
+                    .setNValue(1, ValueFactory::getBigIntValue(i % 2))
+                    .setNValue(2, ValueFactory::getBigIntValue(i % 3))
+                    .setNValue(3, ValueFactory::getBigIntValue(i % 5))
+                    .setNValue(4, ValueFactory::getBigIntValue(i % 7)));
         }
         //::printf("%s", table->debug().c_str());
         return table;

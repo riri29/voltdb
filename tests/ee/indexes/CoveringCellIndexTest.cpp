@@ -146,8 +146,8 @@ protected:
         int pk = 0;
         std::string line;
         while (std::getline(instream, line)) {
-            tempTuple.setNValue(PK_COL_INDEX, ValueFactory::getIntegerValue(pk));
-            tempTuple.setNValue(GEOG_COL_INDEX, polygonWktToNval(line));
+            tempTuple.setNValue(PK_COL_INDEX, ValueFactory::getIntegerValue(pk))
+                .setNValue(GEOG_COL_INDEX, polygonWktToNval(line));
 
             start = std::chrono::high_resolution_clock::now();
             table->insertTuple(tempTuple);
@@ -163,8 +163,8 @@ protected:
         std::cout << "              Average duration of insert: " << (usSpentInserting.count() / pk) << " us\n";
 
         // Add a null value
-        tempTuple.setNValue(PK_COL_INDEX, ValueFactory::getIntegerValue(pk));
-        tempTuple.setNValue(GEOG_COL_INDEX, NValue::getNullValue(ValueType::tGEOGRAPHY));
+        tempTuple.setNValue(PK_COL_INDEX, ValueFactory::getIntegerValue(pk))
+            .setNValue(GEOG_COL_INDEX, NValue::getNullValue(ValueType::tGEOGRAPHY));
         table->insertTuple(tempTuple);
 
         // Dump some stats about the index.
@@ -238,8 +238,8 @@ protected:
         for (int i = 0; i < numScans; ++i) {
             // Pick a tuple at random.
             int pk = std::rand() % numTuples;
-            tempTuple.setNValue(PK_COL_INDEX, ValueFactory::getIntegerValue(pk));
-            TableTuple sampleTuple = table->lookupTupleByValues(tempTuple);
+            TableTuple sampleTuple = table->lookupTupleByValues(
+                    tempTuple.setNValue(PK_COL_INDEX, ValueFactory::getIntegerValue(pk)));
             ASSERT_FALSE(sampleTuple.isNullTuple());
 
             NValue geog = sampleTuple.getNValue(GEOG_COL_INDEX);
@@ -367,15 +367,15 @@ protected:
     }
 
     static NValue polygonWktToNval(const std::string& wkt) {
-        NValue input = ValueFactory::getTempStringValue(wkt);
-        NValue result = input.callUnary<FUNC_VOLT_POLYGONFROMTEXT>();
-        return result;
+        return
+            ValueFactory::getTempStringValue(wkt)
+            .callUnary<FUNC_VOLT_POLYGONFROMTEXT>();
     }
 
     static NValue pointWktToNval(const std::string& wkt) {
-        NValue input = ValueFactory::getTempStringValue(wkt);
-        NValue result = input.callUnary<FUNC_VOLT_POINTFROMTEXT>();
-        return result;
+        return
+            ValueFactory::getTempStringValue(wkt)
+            .callUnary<FUNC_VOLT_POINTFROMTEXT>();
     }
 
     std::string nvalToWkt(const NValue& nval) {
@@ -383,13 +383,13 @@ protected:
         NValue wkt;
         switch (vt) {
             case ValueType::tGEOGRAPHY:
-            wkt = nval.callUnary<FUNC_VOLT_ASTEXT_GEOGRAPHY>();
-            break;
+                wkt = nval.callUnary<FUNC_VOLT_ASTEXT_GEOGRAPHY>();
+                break;
             case ValueType::tPOINT:
-            wkt = nval.callUnary<FUNC_VOLT_ASTEXT_GEOGRAPHY_POINT>();
-            break;
-        default:
-            wkt = ValueFactory::getTempStringValue("Something that is not a point or polygon");
+                wkt = nval.callUnary<FUNC_VOLT_ASTEXT_GEOGRAPHY_POINT>();
+                break;
+            default:
+                wkt = ValueFactory::getTempStringValue("Something that is not a point or polygon");
         }
 
         if (! wkt.isNull()) {
@@ -491,20 +491,21 @@ TEST_F(CoveringCellIndexTest, Simple) {
     CoveringCellIndex* ccIndex = static_cast<CoveringCellIndex*>(table->index("poly_idx"));
     TableTuple tempTuple = table->tempTuple();
 
-    tempTuple.setNValue(PK_COL_INDEX, ValueFactory::getIntegerValue(0));
-    tempTuple.setNValue(GEOG_COL_INDEX, polygonWktToNval("polygon((0 0, 1 0, 0 1, 0 0))"));
-    table->insertTuple(tempTuple);
+    table->insertTuple(tempTuple
+            .setNValue(PK_COL_INDEX, ValueFactory::getIntegerValue(0))
+            .setNValue(GEOG_COL_INDEX, polygonWktToNval("polygon((0 0, 1 0, 0 1, 0 0))")));
 
-    tempTuple.setNValue(PK_COL_INDEX, ValueFactory::getIntegerValue(1));
-    tempTuple.setNValue(GEOG_COL_INDEX, polygonWktToNval("polygon((10 10, 11 10, 10 11, 10 10))"));
-    table->insertTuple(tempTuple);
+    table->insertTuple(tempTuple
+            .setNValue(PK_COL_INDEX, ValueFactory::getIntegerValue(1))
+            .setNValue(GEOG_COL_INDEX, polygonWktToNval("polygon((10 10, 11 10, 10 11, 10 10))")));
 
-    tempTuple.setNValue(PK_COL_INDEX, ValueFactory::getIntegerValue(2));
-    tempTuple.setNValue(GEOG_COL_INDEX, NValue::getNullValue(ValueType::tGEOGRAPHY));
+    table->insertTuple(tempTuple
+            .setNValue(PK_COL_INDEX, ValueFactory::getIntegerValue(2))
+            .setNValue(GEOG_COL_INDEX, NValue::getNullValue(ValueType::tGEOGRAPHY)));
 
-    tempTuple.setNValue(PK_COL_INDEX, ValueFactory::getIntegerValue(3));
-    tempTuple.setNValue(GEOG_COL_INDEX, polygonWktToNval("polygon((0 0, 5 0, 0 5, 0 0))"));
-    table->insertTuple(tempTuple);
+    table->insertTuple(tempTuple
+            .setNValue(PK_COL_INDEX, ValueFactory::getIntegerValue(3))
+            .setNValue(GEOG_COL_INDEX, polygonWktToNval("polygon((0 0, 5 0, 0 5, 0 0))")));
 
     // This number is always 1440000, regardless of number of indexed
     // polygons... suspicious.  Maybe it's only considering block

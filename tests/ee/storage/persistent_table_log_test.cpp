@@ -331,8 +331,8 @@ TEST_F(PersistentTableLogTest, InsertUpdateThenUndoOneTest) {
 
     m_table->updateTuple(tuple, tupleCopy);
 
-    ASSERT_TRUE( m_table->lookupTupleForUndo(tupleBackup).isNullTuple());
-    ASSERT_FALSE( m_table->lookupTupleForUndo(tupleCopy).isNullTuple());
+    ASSERT_TRUE(m_table->lookupTupleForUndo(tupleBackup).isNullTuple());
+    ASSERT_FALSE(m_table->lookupTupleForUndo(tupleCopy).isNullTuple());
     m_engine->undoUndoToken(INT64_MIN + 2);
 
     ASSERT_FALSE(m_table->lookupTupleForUndo(tuple).isNullTuple());
@@ -388,44 +388,44 @@ TEST_F(PersistentTableLogTest, LookupTupleUsingTempTupleTest) {
     TableTuple wideTuple(m_tableSchema);
     wideTuple.move(new char[wideTuple.tupleLength()]);
     ::memset(wideTuple.address(), 0, wideTuple.tupleLength());
-    wideTuple.setNValue(0, ValueFactory::getBigIntValue(1));
-    wideTuple.setNValue(1, wideStr);
+    wideTuple.setNValue(0, ValueFactory::getBigIntValue(1))
+        .setNValue(1, wideStr);
     m_table->insertTuple(wideTuple);
     delete[] wideTuple.address();
 
     TableTuple narrowTuple(m_tableSchema);
     narrowTuple.move(new char[narrowTuple.tupleLength()]);
     ::memset(narrowTuple.address(), 0, narrowTuple.tupleLength());
-    narrowTuple.setNValue(0, ValueFactory::getBigIntValue(2));
-    narrowTuple.setNValue(1, narrowStr);
+    narrowTuple.setNValue(0, ValueFactory::getBigIntValue(2))
+        .setNValue(1, narrowStr);
     m_table->insertTuple(narrowTuple);
     delete[] narrowTuple.address();
 
     TableTuple nullTuple(m_tableSchema);
     nullTuple.move(new char[nullTuple.tupleLength()]);
     ::memset(nullTuple.address(), 0, nullTuple.tupleLength());
-    nullTuple.setNValue(0, ValueFactory::getBigIntValue(3));
-    nullTuple.setNValue(1, nullStr);
+    nullTuple.setNValue(0, ValueFactory::getBigIntValue(3))
+        .setNValue(1, nullStr);
     m_table->insertTuple(nullTuple);
     delete[] nullTuple.address();
 
-    TableTuple tempTuple = m_table->tempTuple();
-    tempTuple.setNValue(0, ValueFactory::getBigIntValue(1));
-    tempTuple.setNValue(1, wideStr);
-    TableTuple result = m_table->lookupTupleForUndo(tempTuple);
-    ASSERT_FALSE(result.isNullTuple());
+    ASSERT_FALSE(m_table->lookupTupleForUndo(
+                m_table->tempTuple()
+                .setNValue(0, ValueFactory::getBigIntValue(1))
+                .setNValue(1, wideStr))
+            .isNullTuple());
 
-    tempTuple = m_table->tempTuple();
-    tempTuple.setNValue(0, ValueFactory::getBigIntValue(2));
-    tempTuple.setNValue(1, narrowStr);
-    result = m_table->lookupTupleForUndo(tempTuple);
-    ASSERT_FALSE(result.isNullTuple());
+    ASSERT_FALSE(m_table->lookupTupleForUndo(
+                m_table->tempTuple()
+                .setNValue(0, ValueFactory::getBigIntValue(2))
+                .setNValue(1, narrowStr))
+            .isNullTuple());;
 
-    tempTuple = m_table->tempTuple();
-    tempTuple.setNValue(0, ValueFactory::getBigIntValue(3));
-    tempTuple.setNValue(1, nullStr);
-    result = m_table->lookupTupleForUndo(tempTuple);
-    ASSERT_FALSE(result.isNullTuple());
+    ASSERT_FALSE(m_table->lookupTupleForUndo(
+                m_table->tempTuple()
+                .setNValue(0, ValueFactory::getBigIntValue(3))
+                .setNValue(1, nullStr))
+            .isNullTuple());;
 
     wideStr.free();
     narrowStr.free();

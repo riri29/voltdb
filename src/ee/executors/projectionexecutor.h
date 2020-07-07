@@ -43,8 +43,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef HSTOREPROJECTIONEXECUTOR_H
-#define HSTOREPROJECTIONEXECUTOR_H
+#pragma once
 
 #include <vector>
 #include "boost/shared_array.hpp"
@@ -64,17 +63,14 @@ class Table;
  */
 class ProjectionExecutor : public AbstractExecutor {
     public:
-        ProjectionExecutor(VoltDBEngine *engine, AbstractPlanNode* abstract_node) : AbstractExecutor(engine, abstract_node) {
-            m_outputTable = NULL;
-        }
-        ~ProjectionExecutor();
+        ProjectionExecutor(VoltDBEngine *engine, AbstractPlanNode* abstract_node) :
+            AbstractExecutor(engine, abstract_node) { }
     protected:
-        bool p_init(AbstractPlanNode*,
-                    const ExecutorVector& executorVector);
+        bool p_init(AbstractPlanNode*, const ExecutorVector& executorVector);
         bool p_execute(const NValueArray &params);
 
     private:
-        AbstractTempTable* m_outputTable;
+        AbstractTempTable* m_outputTable = nullptr;
         int m_columnCount;
         boost::shared_array<int> m_allTupleArrayPtr;
         int* m_allTupleArray;
@@ -90,4 +86,3 @@ class ProjectionExecutor : public AbstractExecutor {
 
 }
 
-#endif

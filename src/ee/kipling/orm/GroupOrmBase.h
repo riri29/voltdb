@@ -103,9 +103,10 @@ protected:
      * @param value: NValue to set at the given index
      */
     template <typename Index>
-    void setNValue(const Index index, const NValue& value) {
+    GroupOrmBase& setNValue(const Index index, const NValue& value) {
         setupForUpdate();
         m_update.setNValue(static_cast<int>(index), value);
+        return *this;
     }
 
     /**

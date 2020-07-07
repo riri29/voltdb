@@ -458,8 +458,8 @@ TEST_F(TableAndIndexTest, DrTest) {
 
     vector<NValue> cachedStringValues;//To free at the end of the test
     TableTuple temp_tuple = districtTempTable->tempTuple();
-    temp_tuple.setNValue(0, ValueFactory::getTinyIntValue(static_cast<int8_t>(7)));
-    temp_tuple.setNValue(1, ValueFactory::getTinyIntValue(static_cast<int8_t>(3)));
+    temp_tuple.setNValue(0, ValueFactory::getTinyIntValue(static_cast<int8_t>(7)))
+        .setNValue(1, ValueFactory::getTinyIntValue(static_cast<int8_t>(3)));
     cachedStringValues.push_back(ValueFactory::getStringValue("A District"));
     temp_tuple.setNValue(2, cachedStringValues.back());
     cachedStringValues.push_back(ValueFactory::getStringValue("Street Addy"));
@@ -471,10 +471,10 @@ TEST_F(TableAndIndexTest, DrTest) {
     cachedStringValues.push_back(ValueFactory::getStringValue("BA"));
     temp_tuple.setNValue(6, cachedStringValues.back());
     cachedStringValues.push_back(ValueFactory::getStringValue("99999"));
-    temp_tuple.setNValue(7, cachedStringValues.back());
-    temp_tuple.setNValue(8, ValueFactory::getDoubleValue(static_cast<double>(.0825)));
-    temp_tuple.setNValue(9, ValueFactory::getDoubleValue(static_cast<double>(15241.45)));
-    temp_tuple.setNValue(10, ValueFactory::getIntegerValue(static_cast<int32_t>(21)));
+    temp_tuple.setNValue(7, cachedStringValues.back())
+        .setNValue(8, ValueFactory::getDoubleValue(static_cast<double>(.0825)))
+        .setNValue(9, ValueFactory::getDoubleValue(static_cast<double>(15241.45)))
+        .setNValue(10, ValueFactory::getIntegerValue(static_cast<int32_t>(21)));
 
     /*
      * Test that insert propagates
@@ -529,8 +529,8 @@ TEST_F(TableAndIndexTest, DrTest) {
 
     //Use a different string value for one column
     cachedStringValues.push_back(ValueFactory::getStringValue("shoopdewoop"));
-    temp_tuple.setNValue(3, cachedStringValues.back());
-    districtTable->updateTuple( toUpdate, temp_tuple);
+    districtTable->updateTuple(toUpdate,
+            temp_tuple.setNValue(3, cachedStringValues.back()));
 
     //Flush to generate the log buffer
     drStream.endTransaction(addPartitionId(72));
@@ -605,8 +605,8 @@ TEST_F(TableAndIndexTest, DrTestNoPK) {
 
     vector<NValue> cachedStringValues;//To free at the end of the test
     TableTuple temp_tuple = districtTempTable->tempTuple();
-    temp_tuple.setNValue(0, ValueFactory::getTinyIntValue(static_cast<int8_t>(7)));
-    temp_tuple.setNValue(1, ValueFactory::getTinyIntValue(static_cast<int8_t>(3)));
+    temp_tuple.setNValue(0, ValueFactory::getTinyIntValue(static_cast<int8_t>(7)))
+        .setNValue(1, ValueFactory::getTinyIntValue(static_cast<int8_t>(3)));
     cachedStringValues.push_back(ValueFactory::getStringValue("A District"));
     temp_tuple.setNValue(2, cachedStringValues.back());
     cachedStringValues.push_back(ValueFactory::getStringValue("Street Addy"));
@@ -618,10 +618,10 @@ TEST_F(TableAndIndexTest, DrTestNoPK) {
     cachedStringValues.push_back(ValueFactory::getStringValue("BA"));
     temp_tuple.setNValue(6, cachedStringValues.back());
     cachedStringValues.push_back(ValueFactory::getStringValue("99999"));
-    temp_tuple.setNValue(7, cachedStringValues.back());
-    temp_tuple.setNValue(8, ValueFactory::getDoubleValue(static_cast<double>(.0825)));
-    temp_tuple.setNValue(9, ValueFactory::getDoubleValue(static_cast<double>(15241.45)));
-    temp_tuple.setNValue(10, ValueFactory::getIntegerValue(static_cast<int32_t>(21)));
+    temp_tuple.setNValue(7, cachedStringValues.back())
+        .setNValue(8, ValueFactory::getDoubleValue(static_cast<double>(.0825)))
+        .setNValue(9, ValueFactory::getDoubleValue(static_cast<double>(15241.45)))
+        .setNValue(10, ValueFactory::getIntegerValue(static_cast<int32_t>(21)));
 
     /*
      * Test that insert propagates
@@ -710,9 +710,9 @@ TEST_F(TableAndIndexTest, DrTestNoPKUninlinedColumn) {
 
     vector<NValue> cachedStringValues;//To free at the end of the test
     TableTuple temp_tuple = customerTempTable->tempTuple();
-    temp_tuple.setNValue(0, ValueFactory::getIntegerValue(static_cast<int32_t>(42)));
-    temp_tuple.setNValue(1, ValueFactory::getTinyIntValue(static_cast<int8_t>(7)));
-    temp_tuple.setNValue(2, ValueFactory::getTinyIntValue(static_cast<int8_t>(3)));
+    temp_tuple.setNValue(0, ValueFactory::getIntegerValue(static_cast<int32_t>(42)))
+        .setNValue(1, ValueFactory::getTinyIntValue(static_cast<int8_t>(7)))
+        .setNValue(2, ValueFactory::getTinyIntValue(static_cast<int8_t>(3)));
     cachedStringValues.push_back(ValueFactory::getStringValue("I"));
     temp_tuple.setNValue(3, cachedStringValues.back());
     cachedStringValues.push_back(ValueFactory::getStringValue("BE"));
@@ -730,16 +730,16 @@ TEST_F(TableAndIndexTest, DrTestNoPKUninlinedColumn) {
     cachedStringValues.push_back(ValueFactory::getStringValue("91083"));
     temp_tuple.setNValue(10, cachedStringValues.back());
     cachedStringValues.push_back(ValueFactory::getStringValue("(193) 099-9082"));
-    temp_tuple.setNValue(11, cachedStringValues.back());
-    temp_tuple.setNValue(12, ValueFactory::getTimestampValue(static_cast<int32_t>(123456789)));
+    temp_tuple.setNValue(11, cachedStringValues.back())
+        .setNValue(12, ValueFactory::getTimestampValue(static_cast<int32_t>(123456789)));
     cachedStringValues.push_back(ValueFactory::getStringValue("BC"));
-    temp_tuple.setNValue(13, cachedStringValues.back());
-    temp_tuple.setNValue(14, ValueFactory::getDoubleValue(static_cast<double>(19298943.12)));
-    temp_tuple.setNValue(15, ValueFactory::getDoubleValue(static_cast<double>(.13)));
-    temp_tuple.setNValue(16, ValueFactory::getDoubleValue(static_cast<double>(15.75)));
-    temp_tuple.setNValue(17, ValueFactory::getDoubleValue(static_cast<double>(15241.45)));
-    temp_tuple.setNValue(18, ValueFactory::getIntegerValue(static_cast<int32_t>(0)));
-    temp_tuple.setNValue(19, ValueFactory::getIntegerValue(static_cast<int32_t>(15)));
+    temp_tuple.setNValue(13, cachedStringValues.back())
+        .setNValue(14, ValueFactory::getDoubleValue(static_cast<double>(19298943.12)))
+        .setNValue(15, ValueFactory::getDoubleValue(static_cast<double>(.13)))
+        .setNValue(16, ValueFactory::getDoubleValue(static_cast<double>(15.75)))
+        .setNValue(17, ValueFactory::getDoubleValue(static_cast<double>(15241.45)))
+        .setNValue(18, ValueFactory::getIntegerValue(static_cast<int32_t>(0)))
+        .setNValue(19, ValueFactory::getIntegerValue(static_cast<int32_t>(15)));
     cachedStringValues.push_back(ValueFactory::getStringValue("Some histories are longer than others; long long long long long"));
     temp_tuple.setNValue(20, cachedStringValues.back());
 
@@ -828,8 +828,8 @@ TEST_F(TableAndIndexTest, BigTest) {
 
     vector<NValue> cachedStringValues;//To free at the end of the test
     TableTuple *temp_tuple = &districtTempTable->tempTuple();
-    temp_tuple->setNValue(0, ValueFactory::getTinyIntValue(static_cast<int8_t>(7)));
-    temp_tuple->setNValue(1, ValueFactory::getTinyIntValue(static_cast<int8_t>(3)));
+    temp_tuple->setNValue(0, ValueFactory::getTinyIntValue(static_cast<int8_t>(7)))
+        .setNValue(1, ValueFactory::getTinyIntValue(static_cast<int8_t>(3)));
     cachedStringValues.push_back(ValueFactory::getStringValue("A District"));
     temp_tuple->setNValue(2, cachedStringValues.back());
     cachedStringValues.push_back(ValueFactory::getStringValue("Street Addy"));
@@ -841,10 +841,10 @@ TEST_F(TableAndIndexTest, BigTest) {
     cachedStringValues.push_back(ValueFactory::getStringValue("BA"));
     temp_tuple->setNValue(6, cachedStringValues.back());
     cachedStringValues.push_back(ValueFactory::getStringValue("99999"));
-    temp_tuple->setNValue(7, cachedStringValues.back());
-    temp_tuple->setNValue(8, ValueFactory::getDoubleValue(static_cast<double>(.0825)));
-    temp_tuple->setNValue(9, ValueFactory::getDoubleValue(static_cast<double>(15241.45)));
-    temp_tuple->setNValue(10, ValueFactory::getIntegerValue(static_cast<int32_t>(21)));
+    temp_tuple->setNValue(7, cachedStringValues.back())
+        .setNValue(8, ValueFactory::getDoubleValue(static_cast<double>(.0825)))
+        .setNValue(9, ValueFactory::getDoubleValue(static_cast<double>(15241.45)))
+        .setNValue(10, ValueFactory::getIntegerValue(static_cast<int32_t>(21)));
     districtTempTable->insertTempTuple(*temp_tuple);
 
     temp_tuple = &warehouseTempTable->tempTuple();
@@ -860,15 +860,15 @@ TEST_F(TableAndIndexTest, BigTest) {
     cachedStringValues.push_back(ValueFactory::getStringValue("AZ"));
     temp_tuple->setNValue(5, cachedStringValues.back());
     cachedStringValues.push_back(ValueFactory::getStringValue("12938"));
-    temp_tuple->setNValue(6, cachedStringValues.back());
-    temp_tuple->setNValue(7, ValueFactory::getDoubleValue(static_cast<double>(.1234)));
-    temp_tuple->setNValue(8, ValueFactory::getDoubleValue(static_cast<double>(15241.45)));
-    warehouseTempTable->insertTempTuple(*temp_tuple);
+    warehouseTempTable->insertTempTuple(
+            temp_tuple->setNValue(6, cachedStringValues.back())
+            .setNValue(7, ValueFactory::getDoubleValue(static_cast<double>(.1234)))
+            .setNValue(8, ValueFactory::getDoubleValue(static_cast<double>(15241.45))));
 
     temp_tuple = &customerTempTable->tempTuple();
-    temp_tuple->setNValue(0, ValueFactory::getIntegerValue(static_cast<int32_t>(42)));
-    temp_tuple->setNValue(1, ValueFactory::getTinyIntValue(static_cast<int8_t>(7)));
-    temp_tuple->setNValue(2, ValueFactory::getTinyIntValue(static_cast<int8_t>(3)));
+    temp_tuple->setNValue(0, ValueFactory::getIntegerValue(static_cast<int32_t>(42)))
+        .setNValue(1, ValueFactory::getTinyIntValue(static_cast<int8_t>(7)))
+        .setNValue(2, ValueFactory::getTinyIntValue(static_cast<int8_t>(3)));
     cachedStringValues.push_back(ValueFactory::getStringValue("I"));
     temp_tuple->setNValue(3, cachedStringValues.back());
     cachedStringValues.push_back(ValueFactory::getStringValue("BE"));
@@ -886,18 +886,18 @@ TEST_F(TableAndIndexTest, BigTest) {
     cachedStringValues.push_back(ValueFactory::getStringValue("91083"));
     temp_tuple->setNValue(10, cachedStringValues.back());
     cachedStringValues.push_back(ValueFactory::getStringValue("(193) 099-9082"));
-    temp_tuple->setNValue(11, cachedStringValues.back());
-    temp_tuple->setNValue(12, ValueFactory::getTimestampValue(static_cast<int32_t>(123456789)));
+    temp_tuple->setNValue(11, cachedStringValues.back())
+        .setNValue(12, ValueFactory::getTimestampValue(static_cast<int32_t>(123456789)));
     cachedStringValues.push_back(ValueFactory::getStringValue("BC"));
-    temp_tuple->setNValue(13, cachedStringValues.back());
-    temp_tuple->setNValue(14, ValueFactory::getDoubleValue(static_cast<double>(19298943.12)));
-    temp_tuple->setNValue(15, ValueFactory::getDoubleValue(static_cast<double>(.13)));
-    temp_tuple->setNValue(16, ValueFactory::getDoubleValue(static_cast<double>(15.75)));
-    temp_tuple->setNValue(17, ValueFactory::getDoubleValue(static_cast<double>(15241.45)));
-    temp_tuple->setNValue(18, ValueFactory::getIntegerValue(static_cast<int32_t>(0)));
-    temp_tuple->setNValue(19, ValueFactory::getIntegerValue(static_cast<int32_t>(15)));
-    temp_tuple->setNValue(20, ValueFactory::getStringValue("Some History"));
-    customerTempTable->insertTempTuple(*temp_tuple);
+    customerTempTable->insertTempTuple(
+            temp_tuple->setNValue(13, cachedStringValues.back())
+            .setNValue(14, ValueFactory::getDoubleValue(static_cast<double>(19298943.12)))
+            .setNValue(15, ValueFactory::getDoubleValue(static_cast<double>(.13)))
+            .setNValue(16, ValueFactory::getDoubleValue(static_cast<double>(15.75)))
+            .setNValue(17, ValueFactory::getDoubleValue(static_cast<double>(15241.45)))
+            .setNValue(18, ValueFactory::getIntegerValue(static_cast<int32_t>(0)))
+            .setNValue(19, ValueFactory::getIntegerValue(static_cast<int32_t>(15)))
+            .setNValue(20, ValueFactory::getStringValue("Some History")));
 
     TableTuple districtTuple = TableTuple(districtTempTable->schema());
     TableIterator districtIterator = districtTempTable->iterator();
@@ -921,9 +921,9 @@ TEST_F(TableAndIndexTest, BigTest) {
     }
     customerTempTable->deleteAllTempTupleDeepCopies();
 
-    temp_tuple->setNValue(0, ValueFactory::getIntegerValue(static_cast<int32_t>(43)));
-    temp_tuple->setNValue(1, ValueFactory::getTinyIntValue(static_cast<int8_t>(7)));
-    temp_tuple->setNValue(2, ValueFactory::getTinyIntValue(static_cast<int8_t>(3)));
+    temp_tuple->setNValue(0, ValueFactory::getIntegerValue(static_cast<int32_t>(43)))
+        .setNValue(1, ValueFactory::getTinyIntValue(static_cast<int8_t>(7)))
+        .setNValue(2, ValueFactory::getTinyIntValue(static_cast<int8_t>(3)));
     cachedStringValues.push_back(ValueFactory::getStringValue("We"));
     temp_tuple->setNValue(3, cachedStringValues.back());
     cachedStringValues.push_back(ValueFactory::getStringValue("Be"));
@@ -941,18 +941,18 @@ TEST_F(TableAndIndexTest, BigTest) {
     cachedStringValues.push_back(ValueFactory::getStringValue("13908"));
     temp_tuple->setNValue(10, cachedStringValues.back());
     cachedStringValues.push_back(ValueFactory::getStringValue("(913) 909-0928"));
-    temp_tuple->setNValue(11, cachedStringValues.back());
-    temp_tuple->setNValue(12, ValueFactory::getTimestampValue(static_cast<int64_t>(123456789)));
+    temp_tuple->setNValue(11, cachedStringValues.back())
+        .setNValue(12, ValueFactory::getTimestampValue(static_cast<int64_t>(123456789)));
     cachedStringValues.push_back(ValueFactory::getStringValue("GC"));
-    temp_tuple->setNValue(13, cachedStringValues.back());
-    temp_tuple->setNValue(14, ValueFactory::getDoubleValue(static_cast<double>(19298943.12)));
-    temp_tuple->setNValue(15, ValueFactory::getDoubleValue(static_cast<double>(.13)));
-    temp_tuple->setNValue(16, ValueFactory::getDoubleValue(static_cast<double>(15.75)));
-    temp_tuple->setNValue(17, ValueFactory::getDoubleValue(static_cast<double>(15241.45)));
-    temp_tuple->setNValue(18, ValueFactory::getIntegerValue(static_cast<int32_t>(1)));
-    temp_tuple->setNValue(19, ValueFactory::getIntegerValue(static_cast<int32_t>(15)));
-    temp_tuple->setNValue(20, ValueFactory::getStringValue("Some History"));
-    customerTempTable->insertTempTuple(*temp_tuple);
+    customerTempTable->insertTempTuple(
+            temp_tuple->setNValue(13, cachedStringValues.back())
+            .setNValue(14, ValueFactory::getDoubleValue(static_cast<double>(19298943.12)))
+            .setNValue(15, ValueFactory::getDoubleValue(static_cast<double>(.13)))
+            .setNValue(16, ValueFactory::getDoubleValue(static_cast<double>(15.75)))
+            .setNValue(17, ValueFactory::getDoubleValue(static_cast<double>(15241.45)))
+            .setNValue(18, ValueFactory::getIntegerValue(static_cast<int32_t>(1)))
+            .setNValue(19, ValueFactory::getIntegerValue(static_cast<int32_t>(15)))
+            .setNValue(20, ValueFactory::getStringValue("Some History")));
 
     customerIterator = customerTempTable->iterator();
     while (customerIterator.next(customerTuple)) {

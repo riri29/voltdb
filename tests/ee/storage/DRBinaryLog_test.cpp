@@ -572,8 +572,8 @@ public:
         assert(!tuple_to_update.isNullTuple());
         TableTuple new_tuple = table->tempTuple();
         new_tuple.copy(tuple_to_update);
-        new_tuple.setNValue(0, ValueFactory::getTinyIntValue(new_index_value));
-        new_tuple.setNValue(3, ValueFactory::getStringValue(new_nonindex_value, &m_longLivedPool));
+        new_tuple.setNValue(0, ValueFactory::getTinyIntValue(new_index_value))
+            .setNValue(3, ValueFactory::getStringValue(new_nonindex_value, &m_longLivedPool));
         table->updateTuple(tuple_to_update, new_tuple);
         return table->lookupTupleForDR(new_tuple);
     }
@@ -584,8 +584,8 @@ public:
         assert(!tuple_to_update.isNullTuple());
         TableTuple new_tuple = table->tempTuple();
         new_tuple.copy(tuple_to_update);
-        new_tuple.setNValue(0, ValueFactory::getTinyIntValue(new_tinyint_value));
-        new_tuple.setNValue(1, ValueFactory::getBigIntValue(new_bigint_value));
+        new_tuple.setNValue(0, ValueFactory::getTinyIntValue(new_tinyint_value))
+            .setNValue(1, ValueFactory::getBigIntValue(new_bigint_value));
         table->updateTuple(tuple_to_update, new_tuple);
         return new_tuple;
     }
@@ -596,15 +596,15 @@ public:
         if (table->schema()->hiddenColumnCount() > 0) {
             temp_tuple.setHiddenNValue(0, NValue::getNullValue(ValueType::tBIGINT));
         }
-        temp_tuple.setNValue(0, ValueFactory::getTinyIntValue(tinyint));
-        temp_tuple.setNValue(1, ValueFactory::getBigIntValue(bigint));
-        temp_tuple.setNValue(2, ValueFactory::getDecimalValueFromString(decimal));
-        temp_tuple.setNValue(3, ValueFactory::getStringValue(short_varchar, &m_longLivedPool));
-        temp_tuple.setNValue(4, ValueFactory::getStringValue(long_varchar, &m_longLivedPool));
-        temp_tuple.setNValue(5, ValueFactory::getTimestampValue(timestamp));
-        temp_tuple.setNValue(6, ValueFactory::getBinaryValue("74686973206973206120726174686572206C6F6E6720737472696E67206F6620746578742074686174206973207573656420746F206361757365206E76616C756520746F20757365206F75746C696E652073746F7261676520666F722074686520756E6465726C79696E6720646174612E2049742073686F756C64206265206C6F6E676572207468616E2036342062797465732E",
-                                                                 &m_longLivedPool));
-        return temp_tuple;
+        return temp_tuple.setNValue(0, ValueFactory::getTinyIntValue(tinyint))
+            .setNValue(1, ValueFactory::getBigIntValue(bigint))
+        .setNValue(2, ValueFactory::getDecimalValueFromString(decimal))
+        .setNValue(3, ValueFactory::getStringValue(short_varchar, &m_longLivedPool))
+        .setNValue(4, ValueFactory::getStringValue(long_varchar, &m_longLivedPool))
+        .setNValue(5, ValueFactory::getTimestampValue(timestamp))
+        .setNValue(6, ValueFactory::getBinaryValue(
+                    "74686973206973206120726174686572206C6F6E6720737472696E67206F6620746578742074686174206973207573656420746F206361757365206E76616C756520746F20757365206F75746C696E652073746F7261676520666F722074686520756E6465726C79696E6720646174612E2049742073686F756C64206265206C6F6E676572207468616E2036342062797465732E",
+                    &m_longLivedPool));
     }
 
     void deepCopy(TableTuple *dst, const TableTuple &src) {
@@ -743,26 +743,24 @@ public:
     }
 
     TableTuple firstTupleWithNulls(PersistentTable* table, bool indexFriendly = false) {
-        TableTuple temp_tuple = table->tempTuple();
-        temp_tuple.setNValue(0, (indexFriendly ? ValueFactory::getTinyIntValue(99) : NValue::getNullValue(ValueType::tTINYINT)));
-        temp_tuple.setNValue(1, ValueFactory::getBigIntValue(489735));
-        temp_tuple.setNValue(2, NValue::getNullValue(ValueType::tDECIMAL));
-        temp_tuple.setNValue(3, ValueFactory::getStringValue("whatever", &m_longLivedPool));
-        temp_tuple.setNValue(4, ValueFactory::getNullStringValue());
-        temp_tuple.setNValue(5, ValueFactory::getTimestampValue(3495));
-        return temp_tuple;
+        return table->tempTuple()
+            .setNValue(0, (indexFriendly ? ValueFactory::getTinyIntValue(99) : NValue::getNullValue(ValueType::tTINYINT)))
+            .setNValue(1, ValueFactory::getBigIntValue(489735))
+            .setNValue(2, NValue::getNullValue(ValueType::tDECIMAL))
+            .setNValue(3, ValueFactory::getStringValue("whatever", &m_longLivedPool))
+            .setNValue(4, ValueFactory::getNullStringValue())
+            .setNValue(5, ValueFactory::getTimestampValue(3495));
     }
 
     TableTuple secondTupleWithNulls(PersistentTable* table, bool indexFriendly = false) {
-        TableTuple temp_tuple = table->tempTuple();
-        temp_tuple.setNValue(0, ValueFactory::getTinyIntValue(42));
-        temp_tuple.setNValue(1, (indexFriendly ? ValueFactory::getBigIntValue(31241) : NValue::getNullValue(ValueType::tBIGINT)));
-        temp_tuple.setNValue(2, ValueFactory::getDecimalValueFromString("234234.243"));
-        temp_tuple.setNValue(3, ValueFactory::getNullStringValue());
-        temp_tuple.setNValue(4, ValueFactory::getStringValue("whatever and ever and ever and ever", &m_longLivedPool));
-        temp_tuple.setNValue(5, NValue::getNullValue(ValueType::tTIMESTAMP));
-        temp_tuple.setNValue(6, ValueFactory::getBinaryValue("DEADBEEF", &m_longLivedPool));
-        return temp_tuple;
+        return table->tempTuple()
+            .setNValue(0, ValueFactory::getTinyIntValue(42))
+            .setNValue(1, (indexFriendly ? ValueFactory::getBigIntValue(31241) : NValue::getNullValue(ValueType::tBIGINT)))
+            .setNValue(2, ValueFactory::getDecimalValueFromString("234234.243"))
+            .setNValue(3, ValueFactory::getNullStringValue())
+            .setNValue(4, ValueFactory::getStringValue("whatever and ever and ever and ever", &m_longLivedPool))
+            .setNValue(5, NValue::getNullValue(ValueType::tTIMESTAMP))
+            .setNValue(6, ValueFactory::getBinaryValue("DEADBEEF", &m_longLivedPool));
     }
 
     void createUniqueIndexes() {
@@ -1195,9 +1193,9 @@ TEST_F(DRBinaryLogTest, PartitionedTableRollbacks) {
 
     // Roll back a txn that hasn't applied any binary log data
     beginTxn(m_engine, 101, 101, 100, 72);
-    TableTuple temp_tuple = m_singleColumnTable->tempTuple();
-    temp_tuple.setNValue(0, ValueFactory::getTinyIntValue(1));
-    insertTuple(m_singleColumnTable, temp_tuple);
+    insertTuple(m_singleColumnTable,
+            m_singleColumnTable->tempTuple()
+            .setNValue(0, ValueFactory::getTinyIntValue(1)));
     endTxn(m_engine, false);
 
     flushAndApply(101);
@@ -1299,9 +1297,9 @@ TEST_F(DRBinaryLogTest, RollbackOnReplica) {
 
 TEST_F(DRBinaryLogTest, CantFindTable) {
     beginTxn(m_engine, 99, 99, 98, 70);
-    TableTuple temp_tuple = m_singleColumnTable->tempTuple();
-    temp_tuple.setNValue(0, ValueFactory::getTinyIntValue(1));
-    insertTuple(m_singleColumnTable, temp_tuple);
+    insertTuple(m_singleColumnTable,
+            m_singleColumnTable->tempTuple()
+            .setNValue(0, ValueFactory::getTinyIntValue(1)));
     endTxn(m_engine, true);
 
     // try and fail to apply this on the replica because the table cannot be found.
@@ -1353,14 +1351,14 @@ TEST_F(DRBinaryLogTest, DeleteWithUniqueIndexMultipleTables) {
     beginTxn(m_engine, 99, 99, 98, 70);
     TableTuple first_tuple = insertTuple(m_table, prepareTempTuple(m_table, 42, 55555, "349508345.34583", "a thing", "this is a rather long string of text that is used to cause nvalue to use outline storage for the underlying data. It should be longer than 64 bytes.", 5433));
     TableTuple second_tuple = insertTuple(m_table, prepareTempTuple(m_table, 24, 2321, "23455.5554", "and another", "this is starting to get even sillier", 2222));
-    TableTuple temp_tuple = m_otherTableWithIndex->tempTuple();
-    temp_tuple.setNValue(0, ValueFactory::getTinyIntValue(0));
-    temp_tuple.setNValue(1, ValueFactory::getBigIntValue(1));
-    TableTuple third_tuple = insertTuple(m_otherTableWithIndex, temp_tuple);
-    temp_tuple = m_otherTableWithoutIndex->tempTuple();
-    temp_tuple.setNValue(0, ValueFactory::getTinyIntValue(2));
-    temp_tuple.setNValue(1, ValueFactory::getBigIntValue(3));
-    TableTuple fourth_tuple = insertTuple(m_otherTableWithoutIndex, temp_tuple);
+    TableTuple third_tuple = insertTuple(m_otherTableWithIndex,
+            m_otherTableWithIndex->tempTuple()
+            .setNValue(0, ValueFactory::getTinyIntValue(0))
+            .setNValue(1, ValueFactory::getBigIntValue(1)));
+    TableTuple fourth_tuple = insertTuple(m_otherTableWithoutIndex,
+            m_otherTableWithoutIndex->tempTuple()
+            .setNValue(0, ValueFactory::getTinyIntValue(2))
+            .setNValue(1, ValueFactory::getBigIntValue(3)));
     endTxn(m_engine, true);
 
     flushAndApply(99);
@@ -1371,10 +1369,10 @@ TEST_F(DRBinaryLogTest, DeleteWithUniqueIndexMultipleTables) {
 
     beginTxn(m_engine, 100, 100, 99, 71);
     deleteTuple(m_table, first_tuple);
-    temp_tuple = m_otherTableWithIndex->tempTuple();
-    temp_tuple.setNValue(0, ValueFactory::getTinyIntValue(4));
-    temp_tuple.setNValue(1, ValueFactory::getBigIntValue(5));
-    TableTuple fifth_tuple = insertTuple(m_otherTableWithIndex, temp_tuple);
+    TableTuple fifth_tuple = insertTuple(m_otherTableWithIndex,
+            m_otherTableWithIndex->tempTuple()
+            .setNValue(0, ValueFactory::getTinyIntValue(4))
+            .setNValue(1, ValueFactory::getBigIntValue(5)));
     deleteTuple(m_otherTableWithIndex, third_tuple);
     deleteTuple(m_table, second_tuple);
     deleteTuple(m_otherTableWithoutIndex, fourth_tuple);
@@ -1393,10 +1391,10 @@ TEST_F(DRBinaryLogTest, DeleteWithUniqueIndexNullColumn) {
     createIndexes();
 
     beginTxn(m_engine, 99, 99, 98, 70);
-    TableTuple temp_tuple = m_otherTableWithIndex->tempTuple();
-    temp_tuple.setNValue(0, ValueFactory::getTinyIntValue(0));
-    temp_tuple.setNValue(1, NValue::getNullValue(ValueType::tBIGINT));
-    TableTuple tuple = insertTuple(m_otherTableWithIndex, temp_tuple);
+    TableTuple tuple = insertTuple(m_otherTableWithIndex,
+            m_otherTableWithIndex->tempTuple()
+            .setNValue(0, ValueFactory::getTinyIntValue(0))
+            .setNValue(1, NValue::getNullValue(ValueType::tBIGINT)));
     endTxn(m_engine, true);
 
     flushAndApply(99);

@@ -43,8 +43,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef HSTORESWAPTABLESEXECUTOR_H
-#define HSTORESWAPTABLESEXECUTOR_H
+#pragma once
 
 #include "executors/abstractexecutor.h"
 
@@ -53,8 +52,7 @@ namespace voltdb {
 class SwapTablesExecutor : public AbstractExecutor {
 public:
     SwapTablesExecutor(VoltDBEngine* engine, AbstractPlanNode* abstractNode)
-      : AbstractExecutor(engine, abstractNode)
-    { }
+      : AbstractExecutor(engine, abstractNode) { }
 
 private:
     bool p_init(AbstractPlanNode*, const ExecutorVector& executorVector);
@@ -65,4 +63,3 @@ private:
 
 }
 
-#endif

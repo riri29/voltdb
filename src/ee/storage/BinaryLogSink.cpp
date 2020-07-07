@@ -168,8 +168,8 @@ void setConflictOutcome(boost::shared_ptr<TempTable> metadataTable, bool acceptR
     TableIterator iter = metadataTable->iterator();
     while (iter.next(tuple)) {
         tuple.setNValue(DR_ACTION_DECISION_COLUMN_INDEX,
-                        ValueFactory::getTempStringValue(DRDecisionStr(acceptRemoteChange ? ACCEPT : REJECT)));
-        tuple.setNValue(DR_DIVERGENCE_COLUMN_INDEX,
+                        ValueFactory::getTempStringValue(DRDecisionStr(acceptRemoteChange ? ACCEPT : REJECT)))
+            .setNValue(DR_DIVERGENCE_COLUMN_INDEX,
                         ValueFactory::getTempStringValue(DRDivergenceStr(convergent ? NOT_DIVERGE : DIVERGE)));
     }
 }
@@ -186,9 +186,11 @@ void exportTuples(StreamedTable *exportTable, Table *metaTable, Table *tupleTabl
         TableTuple tempTupleTuple(tupleTable->schema());
         TableIterator tupleIter = tupleTable->iterator();
         while (metaIter.next(tempMetaTuple) && tupleIter.next(tempTupleTuple)) {
-            tempMetaTuple.setNValue(DR_TUPLE_COLUMN_INDEX,
-                                    ValueFactory::getTempStringValue(tempTupleTuple.toJsonString(tupleTable->getColumnNames())));
-            exportTable->insertTuple(tempMetaTuple);
+            exportTable->insertTuple(
+                    tempMetaTuple.setNValue(DR_TUPLE_COLUMN_INDEX,
+                        ValueFactory::getTempStringValue(
+                            tempTupleTuple.toJsonString(
+                                tupleTable->getColumnNames()))));
         }
     }
 }
@@ -241,31 +243,40 @@ void createConflictExportTuple(TempTable *outputMetaTable, TempTable *outputTupl
     int32_t localClusterId = ExecutorContext::getExecutorContext()->drClusterId();
     int64_t localTsCounter = UniqueId::timestampSinceUnixEpoch(ExecutorContext::getExecutorContext()->currentUniqueId());
 
-    TableTuple tempMetaTuple = outputMetaTable->tempTuple();
-
-    tempMetaTuple.setNValue(DR_ROW_TYPE_COLUMN_INDEX, ValueFactory::getTempStringValue(DRConflictRowTypeStr(rowType)));
-    tempMetaTuple.setNValue(DR_LOG_ACTION_COLUMN_INDEX, ValueFactory::getTempStringValue(DRRecordTypeStr(actionType)));
-    tempMetaTuple.setNValue(DR_CONFLICT_COLUMN_INDEX, ValueFactory::getTempStringValue(DRConflictTypeStr(conflictType)));
-    tempMetaTuple.setNValue(DR_CONFLICTS_ON_PK_COLUMN_INDEX, ValueFactory::getTinyIntValue(conflictOnPKType));
-    tempMetaTuple.setNValue(DR_ACTION_DECISION_COLUMN_INDEX, ValueFactory::getTempStringValue(DRDecisionStr(REJECT)));
+    TableTuple tempMetaTuple =
+        outputMetaTable->tempTuple()
+        .setNValue(DR_ROW_TYPE_COLUMN_INDEX, ValueFactory::getTempStringValue(DRConflictRowTypeStr(rowType)))
+        .setNValue(DR_LOG_ACTION_COLUMN_INDEX, ValueFactory::getTempStringValue(DRRecordTypeStr(actionType)))
+        .setNValue(DR_CONFLICT_COLUMN_INDEX, ValueFactory::getTempStringValue(DRConflictTypeStr(conflictType)))
+        .setNValue(DR_CONFLICTS_ON_PK_COLUMN_INDEX, ValueFactory::getTinyIntValue(conflictOnPKType))
+        .setNValue(DR_ACTION_DECISION_COLUMN_INDEX, ValueFactory::getTempStringValue(DRDecisionStr(REJECT)));
 
     // For deleted tuple we only know the cluster id and the timestamp when the deletion occurs
     if (rowType == DELETED_ROW) {
-        tempMetaTuple.setNValue(DR_REMOTE_CLUSTER_ID_COLUMN_INDEX, ValueFactory::getTinyIntValue(remoteClusterId));
-        tempMetaTuple.setNValue(DR_REMOTE_TIMESTAMP_COLUMN_INDEX, ValueFactory::getBigIntValue(UniqueId::timestampSinceUnixEpoch(remoteUniqueId)));
-    }
-    else {
+        tempMetaTuple.setNValue(DR_REMOTE_CLUSTER_ID_COLUMN_INDEX,
+                ValueFactory::getTinyIntValue(remoteClusterId))
+            .setNValue(DR_REMOTE_TIMESTAMP_COLUMN_INDEX,
+                    ValueFactory::getBigIntValue(UniqueId::timestampSinceUnixEpoch(remoteUniqueId)));
+    } else {
         NValue hiddenValue = tupleToBeWrote->getHiddenNValue(drTable->getDRTimestampColumnIndex());
-        tempMetaTuple.setNValue(DR_REMOTE_CLUSTER_ID_COLUMN_INDEX, ValueFactory::getTinyIntValue((ExecutorContext::getClusterIdFromHiddenNValue(hiddenValue))));
-        tempMetaTuple.setNValue(DR_REMOTE_TIMESTAMP_COLUMN_INDEX, ValueFactory::getBigIntValue(ExecutorContext::getDRTimestampFromHiddenNValue(hiddenValue)));
+        tempMetaTuple
+            .setNValue(DR_REMOTE_CLUSTER_ID_COLUMN_INDEX,
+                ValueFactory::getTinyIntValue((ExecutorContext::getClusterIdFromHiddenNValue(hiddenValue))))
+            .setNValue(DR_REMOTE_TIMESTAMP_COLUMN_INDEX,
+                    ValueFactory::getBigIntValue(ExecutorContext::getDRTimestampFromHiddenNValue(hiddenValue)));
         // Must have to deep copy non-inlined data, because tempTuple may be overwritten by following call of this function.
         outputTupleTable->insertTempTupleDeepCopy(*tupleToBeWrote, pool);
     }
-    tempMetaTuple.setNValue(DR_DIVERGENCE_COLUMN_INDEX, ValueFactory::getTempStringValue(DRDivergenceStr(NOT_DIVERGE)));
-    tempMetaTuple.setNValue(DR_TABLE_NAME_COLUMN_INDEX, ValueFactory::getTempStringValue(drTable->name()));
-    tempMetaTuple.setNValue(DR_CURRENT_CLUSTER_ID_COLUMN_INDEX, ValueFactory::getTinyIntValue(localClusterId));
-    tempMetaTuple.setNValue(DR_CURRENT_TIMESTAMP_COLUMN_INDEX, ValueFactory::getBigIntValue(localTsCounter));
-    tempMetaTuple.setNValue(DR_TUPLE_COLUMN_INDEX, ValueFactory::getNullStringValue());
+    tempMetaTuple.setNValue(DR_DIVERGENCE_COLUMN_INDEX,
+            ValueFactory::getTempStringValue(DRDivergenceStr(NOT_DIVERGE)))
+        .setNValue(DR_TABLE_NAME_COLUMN_INDEX,
+                ValueFactory::getTempStringValue(drTable->name()))
+        .setNValue(DR_CURRENT_CLUSTER_ID_COLUMN_INDEX,
+                ValueFactory::getTinyIntValue(localClusterId))
+        .setNValue(DR_CURRENT_TIMESTAMP_COLUMN_INDEX,
+                ValueFactory::getBigIntValue(localTsCounter))
+        .setNValue(DR_TUPLE_COLUMN_INDEX,
+                ValueFactory::getNullStringValue());
     // Must have to deep copy non-inlined data, because tempTuple may be overwritten by following call of this function.
     outputMetaTable->insertTempTupleDeepCopy(tempMetaTuple, pool);
 

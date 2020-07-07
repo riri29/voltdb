@@ -442,9 +442,9 @@ TEST_F(ExpressionTest, HashRange) {
     allowNull.push_back(true);
     allowNull.push_back(false);
 
-    vector<voltdb::ValueType> types;
-    types.push_back(voltdb::ValueType::tBIGINT);
-    types.push_back(voltdb::ValueType::tINTEGER);
+    vector<ValueType> types;
+    types.push_back(ValueType::tBIGINT);
+    types.push_back(ValueType::tINTEGER);
 
     TupleSchema *schema = TupleSchema::createTupleSchemaForTest(types,columnSizes,allowNull);
 
@@ -458,8 +458,7 @@ TEST_F(ExpressionTest, HashRange) {
     for (int ii = 0; ii < 100000; ii++) {
         NValue val = ValueFactory::getIntegerValue(rand());
         const int32_t hash = val.murmurHash3();
-        t.setNValue(1, val);
-        NValue inrange = e1->eval( &t );
+        NValue inrange = e1->eval(&t.setNValue(1, val));
         if ((hash >= range1Min && hash <= range1Max) ||
              (hash >= range2Min && hash <= range2Max) ||
              (hash >= range3Min && hash <= range3Max)) {

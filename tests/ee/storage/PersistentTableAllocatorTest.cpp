@@ -68,7 +68,6 @@ class ProcPersistenTable {
     static char SIGNATURE[20];
     static int32_t const SITES_PER_HOST = 1;
     static vector<string> const COLUMN_NAMES;
-    static vector<ValueType> const COLUMN_TYPES;
     static TupleSchema const* SCHEMA;
 public:
     ProcPersistenTable() {
@@ -109,19 +108,12 @@ public:
 
 char ProcPersistenTable::SIGNATURE[20] = {};
 vector<string> const ProcPersistenTable::COLUMN_NAMES{"ID", "STRING", "GEOGRAPHY"};
-vector<ValueType> const ProcPersistenTable::COLUMN_TYPES{
-    ValueType::tINTEGER, ValueType::tVARCHAR, ValueType::tGEOGRAPHY
-};
-TupleSchema const* ProcPersistenTable::SCHEMA =
-    TupleSchema::createTupleSchemaForTest(
-        ProcPersistenTable::COLUMN_TYPES,
-        accumulate(ProcPersistenTable::COLUMN_TYPES.cbegin(), ProcPersistenTable::COLUMN_TYPES.cend(),
-            vector<int32_t>{},
-            [](vector<int32_t>& acc, ValueType vt) noexcept {
-                acc.emplace_back(NValue::getTupleStorageSize(vt));
-                return acc;
-            }),
-        vector<bool>(ProcPersistenTable::COLUMN_TYPES.size(), false));
+
+TupleSchema const* ProcPersistenTable::SCHEMA = TupleSchemaBuilder(3)
+    .setColumnAtIndex(0, ValueType::tINTEGER, false)
+    .setColumnAtIndex(1, ValueType::tVARCHAR, 512, false)
+    .setColumnAtIndex(2, ValueType::tGEOGRAPHY, 2048, false)
+    .build();
 
 TEST_F(PersistentTableAllocatorTest, Dummy) {
     ProcPersistenTable t;

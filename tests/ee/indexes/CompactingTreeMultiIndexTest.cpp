@@ -45,8 +45,7 @@ public:
         memset(data, 0, tuple->tupleLength());
         tuple->move(data);
 
-        tuple->setNValue(idx, ValueFactory::getBigIntValue(value));
-        return tuple;
+        return &tuple->setNValue(idx, ValueFactory::getBigIntValue(value));
     }
 
     char* initTuples(TupleSchema *schema, int places) {
@@ -56,10 +55,10 @@ public:
             return NULL;
         memset(data, 0, 25 * num);
         for (long ii = 0; ii < num; ii++) {
-            TableTuple tempTuple(data + (25 * ii), schema);
-            tempTuple.setNValue(0, ValueFactory::getBigIntValue(12345));
-            tempTuple.setNValue(1, ValueFactory::getBigIntValue(45688));
-            tempTuple.setNValue(2, ValueFactory::getBigIntValue(rand()));
+            TableTuple(data + (25 * ii), schema)
+                .setNValue(0, ValueFactory::getBigIntValue(12345))
+                .setNValue(1, ValueFactory::getBigIntValue(45688))
+                .setNValue(2, ValueFactory::getBigIntValue(rand()));
         }
         return data;
     }

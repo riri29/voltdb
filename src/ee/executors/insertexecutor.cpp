@@ -197,9 +197,9 @@ bool InsertExecutor::p_execute_init_internal(const TupleSchema *inputSchema,
     // partitioned tables, perform the insert on every partition.
     if (m_partitionColumn == -1 && m_isStreamed && m_multiPartition &&
             !m_sourceIsPartitioned && m_engine->getPartitionId() != 0) {
-        m_count_tuple.setNValue(0, ValueFactory::getBigIntValue(0L));
         // put the tuple into the output table
-        m_tmpOutputTable->insertTuple(m_count_tuple);
+        m_tmpOutputTable->insertTuple(
+                m_count_tuple.setNValue(0, ValueFactory::getBigIntValue(0L)));
         return false;
     }
     m_templateTuple = m_templateTupleStorage.tuple();
@@ -373,9 +373,10 @@ void InsertExecutor::p_execute_finish() {
         vassert(s_modifiedTuples != -1);
         m_modifiedTuples = s_modifiedTuples;
     }
-    m_count_tuple.setNValue(0, ValueFactory::getBigIntValue(m_modifiedTuples));
+
     // put the tuple into the output table
-    m_tmpOutputTable->insertTuple(m_count_tuple);
+    m_tmpOutputTable->insertTuple(
+            m_count_tuple.setNValue(0, ValueFactory::getBigIntValue(m_modifiedTuples)));
 
     // add to the planfragments count of modified tuples
     m_engine->addToTuplesModified(m_modifiedTuples);

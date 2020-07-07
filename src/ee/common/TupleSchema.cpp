@@ -80,12 +80,9 @@ TupleSchema* TupleSchema::createTupleSchema(const std::vector<ValueType>& column
         const std::vector<int32_t>& columnSizes,
         const std::vector<bool>& allowNull,
         const std::vector<bool>& columnInBytes) {
-    const std::vector<HiddenColumn::Type> hiddenTypes(0);
     return TupleSchema::createTupleSchema(columnTypes,
-                                          columnSizes,
-                                          allowNull,
-                                          columnInBytes,
-                                          hiddenTypes);
+            columnSizes, allowNull, columnInBytes,
+            std::vector<HiddenColumn::Type>{});
 }
 
 TupleSchema* TupleSchema::createTupleSchema(const std::vector<ValueType>& columnTypes,
@@ -163,8 +160,7 @@ TupleSchema* TupleSchema::createTupleSchema(const TupleSchema *first,
     return createTupleSchema(first, firstSet, second, secondSet);
 }
 
-TupleSchema*
-TupleSchema::createTupleSchema(const TupleSchema *first,
+TupleSchema* TupleSchema::createTupleSchema(const TupleSchema *first,
         const std::vector<uint16_t>& firstSet,
         const TupleSchema *second,
         const std::vector<uint16_t>& secondSet) {
@@ -194,9 +190,7 @@ TupleSchema::createTupleSchema(const TupleSchema *first,
     }
 
     TupleSchema *schema = TupleSchema::createTupleSchema(columnTypes,
-                                                         columnLengths,
-                                                         columnAllowNull,
-                                                         columnInBytes);
+            columnLengths, columnAllowNull, columnInBytes);
 
     // Remember to set the inlineability of each column correctly.
     for (iter = firstSet.begin(); iter != firstSet.end(); iter++) {
@@ -211,8 +205,7 @@ TupleSchema::createTupleSchema(const TupleSchema *first,
     return schema;
 }
 
-TupleSchema* TupleSchema::createTupleSchema(
-        const std::vector<AbstractExpression *> &exprs) {
+TupleSchema* TupleSchema::createTupleSchema(const std::vector<AbstractExpression*> &exprs) {
     std::vector<ValueType> columnTypes;
     std::vector<int32_t> columnSizes;
     std::vector<bool> columnAllowNull;
@@ -226,9 +219,7 @@ TupleSchema* TupleSchema::createTupleSchema(
         columnInBytes.push_back(expr->getInBytes());
     }
     return TupleSchema::createTupleSchema(columnTypes,
-                                          columnSizes,
-                                          columnAllowNull,
-                                          columnInBytes);
+            columnSizes, columnAllowNull, columnInBytes);
 }
 
 void TupleSchema::freeTupleSchema(TupleSchema const*schema) {

@@ -154,10 +154,10 @@ bool DeleteExecutor::p_execute(const NValueArray &params) {
         // that skipped the replicated table work
         modified_tuples = s_modifiedTuples;
     }
-    TableTuple& count_tuple = m_node->getOutputTable()->tempTuple();
-    count_tuple.setNValue(0, ValueFactory::getBigIntValue(modified_tuples));
     // try to put the tuple into the output table
-    if (!m_node->getOutputTable()->insertTuple(count_tuple)) {
+    if (!m_node->getOutputTable()->insertTuple(
+                m_node->getOutputTable()->tempTuple()
+                .setNValue(0, ValueFactory::getBigIntValue(modified_tuples)))) {
         VOLT_ERROR("Failed to insert tuple count (%ld) into output table '%s'",
                    static_cast<long int>(modified_tuples), m_node->getOutputTable()->name().c_str());
         return false;

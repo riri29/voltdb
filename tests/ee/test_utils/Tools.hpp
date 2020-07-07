@@ -267,8 +267,9 @@ void setTupleValuesHelper(voltdb::TableTuple* tuple, int index) {
 
 template<typename T, typename ... Args>
 void setTupleValuesHelper(voltdb::TableTuple* tuple, int index, T arg, Args... args) {
-    tuple->setNValue(index, Tools::nvalueFromNative(arg));
-    setTupleValuesHelper(tuple, index + 1, args...);
+    setTupleValuesHelper(
+            &tuple->setNValue(index, Tools::nvalueFromNative(arg)),
+            index + 1, args...);
 }
 
 } // end unnamed namespace
@@ -284,8 +285,9 @@ namespace {
 template<typename Tuple, int I>
 struct InitTupleHelper {
     static void impl(voltdb::TableTuple* tuple, const Tuple& initValues) {
-        tuple->setNValue(I, Tools::nvalueFromNative(std::get<I>(initValues)));
-        InitTupleHelper<Tuple, I - 1>::impl(tuple, initValues);
+        InitTupleHelper<Tuple, I - 1>::impl(
+                &tuple->setNValue(I, Tools::nvalueFromNative(std::get<I>(initValues))),
+                initValues);
     }
 };
 

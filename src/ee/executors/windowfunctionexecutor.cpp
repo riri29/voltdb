@@ -705,8 +705,8 @@ bool WindowFunctionExecutor::p_execute(const NValueArray& params) {
     return true;
 }
 
-WindowFunctionExecutor::EdgeType WindowFunctionExecutor::findNextEdge(EdgeType edgeType, TableWindow &tableWindow)
-{
+WindowFunctionExecutor::EdgeType WindowFunctionExecutor::findNextEdge(
+        EdgeType edgeType, TableWindow &tableWindow) {
     // This is just an alias for the buffered input tuple.
     TableTuple &nextTuple = getBufferedInputTuple();
     VOLT_TRACE("findNextEdge(start): %s", tableWindow.debug().c_str());
@@ -765,8 +765,7 @@ WindowFunctionExecutor::EdgeType WindowFunctionExecutor::findNextEdge(EdgeType e
     } while (true);
 }
 
-void WindowFunctionExecutor::initPartitionByKeyTuple(const TableTuple& nextTuple)
-{
+void WindowFunctionExecutor::initPartitionByKeyTuple(const TableTuple& nextTuple) {
     /*
      * The partition by keys should not be null tuples.
      */
@@ -792,8 +791,7 @@ void WindowFunctionExecutor::initPartitionByKeyTuple(const TableTuple& nextTuple
     }
 }
 
-void WindowFunctionExecutor::initOrderByKeyTuple(const TableTuple& nextTuple)
-{
+void WindowFunctionExecutor::initOrderByKeyTuple(const TableTuple& nextTuple) {
     /*
      * The OrderByKey should not be null tuples.
      */

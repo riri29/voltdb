@@ -79,12 +79,10 @@ ValueType col_types[NUM_OF_COLUMNS] = {
 
 class TableSerializeTest : public Test {
     public:
-        TableSerializeTest() :
-          columnNames(NUM_OF_COLUMNS)
-        {
-            this->database_id = 1000;
+        TableSerializeTest() : columnNames(NUM_OF_COLUMNS) {
+            database_id = 1000;
 
-            std::vector<voltdb::ValueType> columnTypes;
+            std::vector<ValueType> columnTypes;
             std::vector<int32_t> columnSizes;
             std::vector<bool> columnAllowNull(NUM_OF_COLUMNS, false);
             for (int ctr = 0; ctr < NUM_OF_COLUMNS; ctr++) {
@@ -96,22 +94,22 @@ class TableSerializeTest : public Test {
                 columnSizes.push_back(static_cast<int32_t>(size));
                 columnTypes.push_back(col_types[ctr]);
             }
-            voltdb::TupleSchema *schema = voltdb::TupleSchema::createTupleSchemaForTest(columnTypes, columnSizes, columnAllowNull);
+            TupleSchema *schema = TupleSchema::createTupleSchemaForTest(columnTypes, columnSizes, columnAllowNull);
             table_ = TableFactory::buildTempTable("temp_table", schema, columnNames, NULL);
 
             for (int64_t i = 1; i <= TUPLES; ++i) {
-                TableTuple &tuple = table_->tempTuple();
-                tuple.setNValue(0, ValueFactory::getTinyIntValue(static_cast<int8_t>(i)));
-                tuple.setNValue(1, ValueFactory::getBigIntValue(static_cast<int16_t>(i % 2)));
-                tuple.setNValue(2, ValueFactory::getBigIntValue(static_cast<int32_t>(i % 3)));
-                tuple.setNValue(3, ValueFactory::getBigIntValue(static_cast<int64_t>(i % 5)));
+                TableTuple &tuple = table_->tempTuple()
+                    .setNValue(0, ValueFactory::getTinyIntValue(static_cast<int8_t>(i)))
+                    .setNValue(1, ValueFactory::getBigIntValue(static_cast<int16_t>(i % 2)))
+                    .setNValue(2, ValueFactory::getBigIntValue(static_cast<int32_t>(i % 3)))
+                    .setNValue(3, ValueFactory::getBigIntValue(static_cast<int64_t>(i % 5)));
                 ostringstream str;
                 str << "varchar string:" << (i % 7);
                 NValue stringValue = ValueFactory::getStringValue(str.str());
                 tuple.setNValueAllocateForObjectCopies(4, stringValue);
                 stringValue.free();
-                tuple.setNValue(5, ValueFactory::getDoubleValue(3.14f * static_cast<double>(i)));
-                table_->insertTuple(tuple);
+                table_->insertTuple(
+                        tuple.setNValue(5, ValueFactory::getDoubleValue(3.14f * static_cast<double>(i))));
             }
 
         }
@@ -166,18 +164,16 @@ TEST_F(TableSerializeTest, RoundTrip) {
 
 TEST_F(TableSerializeTest, NullStrings) {
     std::vector<std::string> columnNames(1);
-    std::vector<voltdb::ValueType> columnTypes(1, voltdb::ValueType::tVARCHAR);
+    std::vector<ValueType> columnTypes(1, ValueType::tVARCHAR);
     std::vector<int32_t> columnSizes(1, 20);
     std::vector<bool> columnAllowNull(1, false);
-    voltdb::TupleSchema *schema = voltdb::TupleSchema::createTupleSchemaForTest(columnTypes, columnSizes, columnAllowNull);
+    TupleSchema *schema = TupleSchema::createTupleSchemaForTest(columnTypes, columnSizes, columnAllowNull);
     columnNames[0] = "";
     table_->deleteAllTempTupleDeepCopies();
     delete table_;
     table_ = TableFactory::buildTempTable("temp_table", schema, columnNames, NULL);
-
     TableTuple& tuple = table_->tempTuple();
-    tuple.setNValue(0, ValueFactory::getNullStringValue());
-    table_->insertTuple(tuple);
+    table_->insertTuple(tuple.setNValue(0, ValueFactory::getNullStringValue()));
 
     // Serialize the table
     CopySerializeOutput serialize_out;

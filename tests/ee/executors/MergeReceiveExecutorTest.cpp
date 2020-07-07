@@ -118,8 +118,7 @@ public:
         for (size_t i = 0; i < nValues; ++i) {
             NValue value = ValueFactory::getIntegerValue(partitionValues[i]);
             tuple.move(block+i*tuple.tupleLength());
-            tuple.setNValue(0, value);
-            tuples.push_back(tuple);
+            tuples.push_back(tuple.setNValue(0, value));
         }
         if (!partitionValues.empty()) {
             partitionTupleCounts.push_back(partitionValues.size());
@@ -353,7 +352,6 @@ TEST_F(MergeReceiveExecutorTest, multipleOverlapPartitionsTest)
 
 } // namespace voltdb
 
-int main()
-{
+int main() {
     return TestSuite::globalInstance()->runAll();
 }

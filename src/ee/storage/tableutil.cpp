@@ -90,14 +90,16 @@ void tableutil::setRandomTupleValues(Table* table, TableTuple *tuple) {
         const TupleSchema::ColumnInfo *columnInfo = table->schema()->getColumnInfo(col_ctr);
         NValue value = ValueFactory::getRandomValue(columnInfo->getVoltType(), columnInfo->length);
 
-        tuple->setNValue(col_ctr, value);
+
 
         /*
          * getRandomValue() does an allocation for all strings it generates and those need to be freed
          * if the pointer wasn't transferred into the tuple.
          * The pointer won't be transferred into the tuple if the schema has that column inlined.
          */
-        const TupleSchema::ColumnInfo *tupleColumnInfo = tuple->getSchema()->getColumnInfo(col_ctr);
+        const TupleSchema::ColumnInfo *tupleColumnInfo =
+            tuple->setNValue(col_ctr, value)
+            .getSchema()->getColumnInfo(col_ctr);
 
         const ValueType t = tupleColumnInfo->getVoltType();
         if ((t == ValueType::tVARCHAR || t == ValueType::tVARBINARY) &&

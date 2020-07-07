@@ -333,15 +333,14 @@ public:
             table->addIndex(index);
         }
 
-        for (int64_t i = 1; i <= NUM_OF_TUPLES; ++i)
-        {
-            TableTuple &tuple = table->tempTuple();
-            tuple.setNValue(0, ValueFactory::getBigIntValue(i));
-            tuple.setNValue(1, ValueFactory::getBigIntValue(i % 2));
-            tuple.setNValue(2, ValueFactory::getBigIntValue(i % 3));
-            tuple.setNValue(3, ValueFactory::getBigIntValue(i + 20));
-            tuple.setNValue(4, ValueFactory::getBigIntValue(i * 11));
-            vassert(table->insertTuple(tuple));
+        for (int64_t i = 1; i <= NUM_OF_TUPLES; ++i) {
+            vassert(table->insertTuple(
+                        table->tempTuple()
+                        .setNValue(0, ValueFactory::getBigIntValue(i))
+                        .setNValue(1, ValueFactory::getBigIntValue(i % 2))
+                        .setNValue(2, ValueFactory::getBigIntValue(i % 3))
+                        .setNValue(3, ValueFactory::getBigIntValue(i + 20))
+                        .setNValue(4, ValueFactory::getBigIntValue(i * 11))));
         }
     }
 
@@ -462,8 +461,8 @@ TEST_F(IndexTest, IntsUnique) {
                                        keyColumnAllowNull);
     TableTuple searchkey(keySchema);
     searchkey.move(new char[searchkey.tupleLength()]);
-    searchkey.setNValue(0, ValueFactory::getBigIntValue(static_cast<int64_t>(550)));
-    searchkey.setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(2)));
+    searchkey.setNValue(0, ValueFactory::getBigIntValue(static_cast<int64_t>(550)))
+        .setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(2)));
     EXPECT_TRUE(index->moveToKey(&searchkey, indexCursor));
 
     tuple = index->nextValueAtKey(indexCursor);
@@ -477,17 +476,16 @@ TEST_F(IndexTest, IntsUnique) {
     tuple = index->nextValueAtKey(indexCursor);
     EXPECT_TRUE(tuple.isNullTuple());
 
-    searchkey.setNValue(0, ValueFactory::getBigIntValue(static_cast<int64_t>(550)));
-    searchkey.setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(1)));
+    searchkey.setNValue(0, ValueFactory::getBigIntValue(static_cast<int64_t>(550)))
+        .setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(1)));
     EXPECT_FALSE(index->moveToKey(&searchkey, indexCursor));
     tuple = index->nextValueAtKey(indexCursor);
     EXPECT_TRUE(tuple.isNullTuple());
 
     // partial index search test
-    searchkey.
-        setNValue(0, ValueFactory::getBigIntValue(static_cast<int64_t>(440)));
-    searchkey.
-        setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(-10000000)));
+    searchkey
+        .setNValue(0, ValueFactory::getBigIntValue(static_cast<int64_t>(440)))
+        .setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(-10000000)));
     index->moveToKeyOrGreater(&searchkey, indexCursor);
     EXPECT_FALSE((tuple = index->nextValue(indexCursor)).isNullTuple());
 
@@ -513,10 +511,9 @@ TEST_F(IndexTest, IntsUnique) {
     EXPECT_TRUE(ValueFactory::getBigIntValue(41 * 11).
                 op_equals(tuple.getNValue(4)).isTrue());
 
-    searchkey.
-        setNValue(0, ValueFactory::getBigIntValue(static_cast<int64_t>(440)));
-    searchkey.
-        setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(10000000)));
+    searchkey
+        .setNValue(0, ValueFactory::getBigIntValue(static_cast<int64_t>(440)))
+        .setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(10000000)));
     index->moveToKeyOrGreater(&searchkey, indexCursor);
     EXPECT_FALSE((tuple = index->nextValue(indexCursor)).isNullTuple());
     EXPECT_TRUE(ValueFactory::getBigIntValue(41).
@@ -542,10 +539,9 @@ TEST_F(IndexTest, IntsUnique) {
                 op_equals(tuple.getNValue(4)).isTrue());
 
     // moveToGreaterThanKey test
-    searchkey.
-        setNValue(0, ValueFactory::getBigIntValue(static_cast<int64_t>(330)));
-    searchkey.
-        setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(30%3)));
+    searchkey
+        .setNValue(0, ValueFactory::getBigIntValue(static_cast<int64_t>(330)))
+        .setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(30%3)));
     index->moveToGreaterThanKey(&searchkey, indexCursor);
     EXPECT_FALSE((tuple = index->nextValue(indexCursor)).isNullTuple());
     EXPECT_TRUE(ValueFactory::getBigIntValue(31).
@@ -559,33 +555,23 @@ TEST_F(IndexTest, IntsUnique) {
     EXPECT_TRUE(ValueFactory::getBigIntValue(31 * 11).
                 op_equals(tuple.getNValue(4)).isTrue());
 
-    TableTuple &tmptuple = table->tempTuple();
-    tmptuple.
-        setNValue(0, ValueFactory::getBigIntValue(static_cast<int16_t>(1234)));
-    tmptuple.
-        setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(0)));
-    tmptuple.
-        setNValue(2, ValueFactory::getBigIntValue(static_cast<int64_t>(3333)));
-    tmptuple.
-        setNValue(3, ValueFactory::getBigIntValue(static_cast<int64_t>(-200)));
-    tmptuple.
-        setNValue(4, ValueFactory::getBigIntValue(static_cast<int64_t>(550)));
+    TableTuple &tmptuple = table->tempTuple()
+        .setNValue(0, ValueFactory::getBigIntValue(static_cast<int16_t>(1234)))
+        .setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(0)))
+        .setNValue(2, ValueFactory::getBigIntValue(static_cast<int64_t>(3333)))
+        .setNValue(3, ValueFactory::getBigIntValue(static_cast<int64_t>(-200)))
+        .setNValue(4, ValueFactory::getBigIntValue(static_cast<int64_t>(550)));
     EXPECT_TRUE(table->insertTuple(tmptuple));
-    tmptuple.
-        setNValue(0, ValueFactory::getBigIntValue(static_cast<int16_t>(1235)));
-    tmptuple.
-        setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(0)));
-    tmptuple.
-        setNValue(2, ValueFactory::getBigIntValue(static_cast<int64_t>(50 % 3)));
-    tmptuple.
-        setNValue(3, ValueFactory::getBigIntValue(static_cast<int64_t>(-200)));
-    tmptuple.
-        setNValue(4, ValueFactory::getBigIntValue(static_cast<int64_t>(550)));
+    tmptuple
+        .setNValue(0, ValueFactory::getBigIntValue(static_cast<int16_t>(1235)))
+        .setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(0)))
+        .setNValue(2, ValueFactory::getBigIntValue(static_cast<int64_t>(50 % 3)))
+        .setNValue(3, ValueFactory::getBigIntValue(static_cast<int64_t>(-200)))
+        .setNValue(4, ValueFactory::getBigIntValue(static_cast<int64_t>(550)));
     bool exceptionThrown = false;
     try {
         EXPECT_EQ(false, table->insertTuple(tmptuple));
-    } catch (SerializableEEException &e)
-    {
+    } catch (SerializableEEException const& e) {
         exceptionThrown = true;
     }
     EXPECT_TRUE(exceptionThrown);
@@ -721,29 +707,20 @@ TEST_F(IndexTest, IntsMulti) {
     EXPECT_TRUE(ValueFactory::getBigIntValue(31 * 11).
                 op_equals(tuple.getNValue(4)).isTrue());
 
-    TableTuple& tmptuple = table->tempTuple();
-    tmptuple.
-        setNValue(0, ValueFactory::getBigIntValue(static_cast<int64_t>(1234)));
-    tmptuple.
-        setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(0)));
-    tmptuple.
-        setNValue(2, ValueFactory::getBigIntValue(static_cast<int64_t>(3333)));
-    tmptuple.
-        setNValue(3, ValueFactory::getBigIntValue(static_cast<int64_t>(-200)));
-    tmptuple.
-        setNValue(4, ValueFactory::getBigIntValue(static_cast<int64_t>(550)));
+    TableTuple& tmptuple = table->tempTuple()
+        .setNValue(0, ValueFactory::getBigIntValue(static_cast<int64_t>(1234)))
+        .setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(0)))
+        .setNValue(2, ValueFactory::getBigIntValue(static_cast<int64_t>(3333)))
+        .setNValue(3, ValueFactory::getBigIntValue(static_cast<int64_t>(-200)))
+        .setNValue(4, ValueFactory::getBigIntValue(static_cast<int64_t>(550)));
     EXPECT_TRUE(table->insertTuple(tmptuple));
-    tmptuple.
-        setNValue(0, ValueFactory::getBigIntValue(static_cast<int64_t>(12345)));
-    tmptuple.
-        setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(0)));
-    tmptuple.
-        setNValue(2, ValueFactory::getBigIntValue(static_cast<int64_t>(50 %3)));
-    tmptuple.
-        setNValue(3, ValueFactory::getBigIntValue(static_cast<int64_t>(-200)));
-    tmptuple.
-        setNValue(4, ValueFactory::getBigIntValue(static_cast<int64_t>(550)));
-    EXPECT_TRUE(table->insertTuple(tmptuple));
+    EXPECT_TRUE(table->insertTuple(
+                tmptuple
+                .setNValue(0, ValueFactory::getBigIntValue(static_cast<int64_t>(12345)))
+                .setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(0)))
+                .setNValue(2, ValueFactory::getBigIntValue(static_cast<int64_t>(50 %3)))
+                .setNValue(3, ValueFactory::getBigIntValue(static_cast<int64_t>(-200)))
+                .setNValue(4, ValueFactory::getBigIntValue(static_cast<int64_t>(550)))));
     TupleSchema::freeTupleSchema(keySchema);
     delete[] searchkey.address();
 }
@@ -856,8 +833,8 @@ TEST_F(IndexTest, ReentrantTreeUnique) {
     searchkey.move(new char[searchkey.tupleLength()]);
 
     // partial index search test
-    searchkey.setNValue(0, ValueFactory::getBigIntValue(static_cast<int64_t>(440)));
-    searchkey.setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(-10000000)));
+    searchkey.setNValue(0, ValueFactory::getBigIntValue(static_cast<int64_t>(440)))
+        .setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(-10000000)));
     index->moveToKeyOrGreater(&searchkey, indexCursor);
     EXPECT_FALSE((tuple = index->nextValue(indexCursor)).isNullTuple());
 
@@ -868,8 +845,8 @@ TEST_F(IndexTest, ReentrantTreeUnique) {
     //
     IndexCursor indexCursorNew(index->getTupleSchema());
 
-    searchkey.setNValue(0, ValueFactory::getBigIntValue(static_cast<int64_t>(440)));
-    searchkey.setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(10000000)));
+    searchkey.setNValue(0, ValueFactory::getBigIntValue(static_cast<int64_t>(440)))
+        .setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(10000000)));
     index->moveToKeyOrGreater(&searchkey, indexCursorNew);
     EXPECT_FALSE((tuple = index->nextValue(indexCursorNew)).isNullTuple());
     EXPECT_TRUE(ValueFactory::getBigIntValue(41).
@@ -879,8 +856,8 @@ TEST_F(IndexTest, ReentrantTreeUnique) {
             op_equals(tuple.getNValue(0)).isTrue());
 
     // moveToGreaterThanKey test on the re-entrant-index
-    searchkey.setNValue(0, ValueFactory::getBigIntValue(static_cast<int64_t>(330)));
-    searchkey.setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(30%3)));
+    searchkey.setNValue(0, ValueFactory::getBigIntValue(static_cast<int64_t>(330)))
+        .setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(30%3)));
     index->moveToGreaterThanKey(&searchkey, indexCursorNew);
     EXPECT_FALSE((tuple = index->nextValue(indexCursorNew)).isNullTuple());
     EXPECT_TRUE(ValueFactory::getBigIntValue(31).
@@ -894,8 +871,8 @@ TEST_F(IndexTest, ReentrantTreeUnique) {
             op_equals(tuple.getNValue(0)).isTrue());
 
     // go to indexCursorNew again
-    searchkey.setNValue(0, ValueFactory::getBigIntValue(static_cast<int64_t>(550)));
-    searchkey.setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(2)));
+    searchkey.setNValue(0, ValueFactory::getBigIntValue(static_cast<int64_t>(550)))
+        .setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(2)));
     EXPECT_TRUE(index->moveToKey(&searchkey, indexCursorNew));
 
     tuple = index->nextValueAtKey(indexCursorNew);
@@ -943,14 +920,14 @@ TEST_F(IndexTest, ReentrantTreeMultiple) {
     TableTuple searchkey(keySchema);
     searchkey.move(new char[searchkey.tupleLength()]);
 
-    searchkey.setNValue(0, ValueFactory::getBigIntValue(static_cast<int64_t>(550)));
-    searchkey.setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(1)));
+    searchkey.setNValue(0, ValueFactory::getBigIntValue(static_cast<int64_t>(550)))
+        .setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(1)));
     EXPECT_FALSE(index->moveToKey(&searchkey, indexCursor));
     tuple = index->nextValueAtKey(indexCursor);
     EXPECT_TRUE(tuple.isNullTuple());
 
-    searchkey.setNValue(0, ValueFactory::getBigIntValue(static_cast<int64_t>(440)));
-    searchkey.setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(-10000000)));
+    searchkey.setNValue(0, ValueFactory::getBigIntValue(static_cast<int64_t>(440)))
+        .setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(-10000000)));
 
     index->moveToKeyOrGreater(&searchkey, indexCursor);
     EXPECT_FALSE((tuple = index->nextValue(indexCursor)).isNullTuple());
@@ -962,16 +939,16 @@ TEST_F(IndexTest, ReentrantTreeMultiple) {
     //
     IndexCursor indexCursorNew(index->getTupleSchema());
 
-    searchkey.setNValue(0, ValueFactory::getBigIntValue(static_cast<int64_t>(440)));
-    searchkey.setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(10000000)));
+    searchkey.setNValue(0, ValueFactory::getBigIntValue(static_cast<int64_t>(440)))
+        .setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(10000000)));
     index->moveToKeyOrGreater(&searchkey, indexCursorNew);
     EXPECT_FALSE((tuple = index->nextValue(indexCursorNew)).isNullTuple());
     EXPECT_TRUE(ValueFactory::getBigIntValue(41).
             op_equals(tuple.getNValue(0)).isTrue());
 
     // moveToGreaterThanKey test
-    searchkey.setNValue(0, ValueFactory::getBigIntValue(static_cast<int64_t>(330)));
-    searchkey.setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(30%3)));
+    searchkey.setNValue(0, ValueFactory::getBigIntValue(static_cast<int64_t>(330)))
+        .setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(30%3)));
 
     index->moveToGreaterThanKey(&searchkey, indexCursorNew);
     EXPECT_FALSE((tuple = index->nextValue(indexCursorNew)).isNullTuple());
@@ -986,8 +963,8 @@ TEST_F(IndexTest, ReentrantTreeMultiple) {
                 op_equals(tuple.getNValue(0)).isTrue());
 
     // go to indexCursorNew again
-    searchkey.setNValue(0, ValueFactory::getBigIntValue(static_cast<int64_t>(550)));
-    searchkey.setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(2)));
+    searchkey.setNValue(0, ValueFactory::getBigIntValue(static_cast<int64_t>(550)))
+        .setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(2)));
     EXPECT_TRUE(index->moveToKey(&searchkey, indexCursorNew));
 
     tuple = index->nextValueAtKey(indexCursorNew);
@@ -1029,8 +1006,8 @@ TEST_F(IndexTest, ReentrantHashUnique) {
     TableTuple searchkey(keySchema);
     searchkey.move(new char[searchkey.tupleLength()]);
 
-    searchkey.setNValue(0, ValueFactory::getBigIntValue(static_cast<int64_t>(550)));
-    searchkey.setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(2)));
+    searchkey.setNValue(0, ValueFactory::getBigIntValue(static_cast<int64_t>(550)))
+        .setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(2)));
     EXPECT_TRUE(index->moveToKey(&searchkey, indexCursor));
     tuple = index->nextValueAtKey(indexCursor);
     EXPECT_FALSE(tuple.isNullTuple());
@@ -1040,8 +1017,8 @@ TEST_F(IndexTest, ReentrantHashUnique) {
     // Before index moves to the next value, re-use the same index to iterate
     //
     IndexCursor indexCursorNew(index->getTupleSchema());
-    searchkey.setNValue(0, ValueFactory::getBigIntValue(static_cast<int64_t>(440)));
-    searchkey.setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(40 % 3)));
+    searchkey.setNValue(0, ValueFactory::getBigIntValue(static_cast<int64_t>(440)))
+        .setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(40 % 3)));
 
     index->moveToKey(&searchkey, indexCursorNew);
     EXPECT_FALSE((tuple = index->nextValueAtKey(indexCursorNew)).isNullTuple());
@@ -1085,8 +1062,8 @@ TEST_F(IndexTest, ReentrantHashMultiple) {
     TableTuple searchkey(keySchema);
     searchkey.move(new char[searchkey.tupleLength()]);
 
-    searchkey.setNValue(0, ValueFactory::getBigIntValue(static_cast<int64_t>(550)));
-    searchkey.setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(2)));
+    searchkey.setNValue(0, ValueFactory::getBigIntValue(static_cast<int64_t>(550)))
+        .setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(2)));
     EXPECT_TRUE(index->moveToKey(&searchkey, indexCursor));
     tuple = index->nextValueAtKey(indexCursor);
     EXPECT_FALSE(tuple.isNullTuple());
@@ -1096,8 +1073,8 @@ TEST_F(IndexTest, ReentrantHashMultiple) {
     // Before index moves to the next value, re-use the same index to iterate
     //
     IndexCursor indexCursorNew(index->getTupleSchema());
-    searchkey.setNValue(0, ValueFactory::getBigIntValue(static_cast<int64_t>(440)));
-    searchkey.setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(40 % 3)));
+    searchkey.setNValue(0, ValueFactory::getBigIntValue(static_cast<int64_t>(440)))
+        .setNValue(1, ValueFactory::getBigIntValue(static_cast<int64_t>(40 % 3)));
 
     index->moveToKey(&searchkey, indexCursorNew);
     EXPECT_FALSE((tuple = index->nextValueAtKey(indexCursorNew)).isNullTuple());

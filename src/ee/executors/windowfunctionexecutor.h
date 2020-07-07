@@ -14,8 +14,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with VoltDB.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef WINDOWFUNCTIONEXECUTOR_H_
-#define WINDOWFUNCTIONEXECUTOR_H_
+#pragma once
 
 #include "abstractexecutor.h"
 #include "plannodes/windowfunctionnode.h"
@@ -337,4 +336,3 @@ private:
 
 } /* namespace voltdb */
 
-#endif /* WINDOWFUNCTIONEXECUTOR_H_ */

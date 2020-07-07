@@ -16,8 +16,7 @@
  */
 
 
-#ifndef HSTOREINDEXCOUNTEXECUTOR_H
-#define HSTOREINDEXCOUNTEXECUTOR_H
+#pragma once
 
 #include "common/common.h"
 #include "common/valuevector.h"
@@ -38,13 +37,10 @@ class AbstractExpression;
 class IndexCountPlanNode;
 struct IndexCursor;
 
-class IndexCountExecutor : public AbstractExecutor
-{
+class IndexCountExecutor : public AbstractExecutor {
 public:
     IndexCountExecutor(VoltDBEngine* engine, AbstractPlanNode* abstractNode)
-        : AbstractExecutor(engine, abstractNode), m_searchKeyBackingStore(NULL), m_endKeyBackingStore(NULL)
-    {
-    }
+        : AbstractExecutor(engine, abstractNode) { }
     ~IndexCountExecutor();
 
 private:
@@ -76,10 +72,9 @@ private:
     boost::shared_array<AbstractExpression*> m_endKeyArrayPtr;
 
     // So Valgrind doesn't complain:
-    char* m_searchKeyBackingStore;
-    char* m_endKeyBackingStore;
+    char* m_searchKeyBackingStore = nullptr;
+    char* m_endKeyBackingStore = nullptr;
 };
 
 }
 
-#endif // HSTOREINDEXCOUNTEXECUTOR_H

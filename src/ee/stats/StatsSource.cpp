@@ -135,12 +135,12 @@ TableTuple* StatsSource::getStatsTuple(int64_t siteId, int32_t partitionId, bool
         vassert(m_statsTable != NULL);
         return NULL;
     }
-    m_statsTuple.setNValue(0, ValueFactory::getBigIntValue(now));
-    m_statsTuple.setNValue(1, ValueFactory::getIntegerValue(static_cast<int32_t>(m_hostId)));
-    m_statsTuple.setNValue(2, m_hostname);
-    m_statsTuple.setNValue(3, ValueFactory::getIntegerValue(static_cast<int32_t>(siteId >> 32)));
-    m_statsTuple.setNValue(4, ValueFactory::getBigIntValue(partitionId));
-    updateStatsTuple(&m_statsTuple);
+    updateStatsTuple(
+            &m_statsTuple.setNValue(0, ValueFactory::getBigIntValue(now))
+            .setNValue(1, ValueFactory::getIntegerValue(static_cast<int32_t>(m_hostId)))
+            .setNValue(2, m_hostname)
+            .setNValue(3, ValueFactory::getIntegerValue(static_cast<int32_t>(siteId >> 32)))
+            .setNValue(4, ValueFactory::getBigIntValue(partitionId)));
     // this was put in to collect history, but wasn't bounded so it leaked
     // also maybe better to collect history elsewhere
     //m_statsTable->insertTuple(m_statsTuple);

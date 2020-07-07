@@ -49,8 +49,7 @@
 using namespace voltdb;
 
 bool TupleScanExecutor::p_init(AbstractPlanNode* abstract_node,
-                               const ExecutorVector& executorVector)
-{
+                               const ExecutorVector& executorVector) {
     VOLT_TRACE("init TupleScan Executor");
     TupleScanPlanNode* node = dynamic_cast<TupleScanPlanNode*>(abstract_node);
     vassert(node);
@@ -70,8 +69,7 @@ bool TupleScanExecutor::p_execute(const NValueArray &params) {
     TableTuple temp_tuple = output_temp_table->tempTuple();
     const std::vector<int>& paramIdxs = node->getParamIdxs();
     vassert(paramIdxs.size() == output_temp_table->schema()->columnCount());
-    for (int i = 0; i < paramIdxs.size(); ++i)
-    {
+    for (int i = 0; i < paramIdxs.size(); ++i) {
         temp_tuple.setNValue(i, params[paramIdxs[i]]);
     }
 

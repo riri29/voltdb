@@ -158,10 +158,10 @@ bool MigrateExecutor::p_execute(const NValueArray &params) {
         // that skipped the replicated table work
         migrated_tuples = s_modifiedTuples;
     }
-    TableTuple& count_tuple = m_node->getOutputTable()->tempTuple();
-    count_tuple.setNValue(0, ValueFactory::getBigIntValue(migrated_tuples));
     // try to put the tuple into the output table
-    m_node->getOutputTable()->insertTuple(count_tuple);
+    m_node->getOutputTable()->insertTuple(
+            m_node->getOutputTable()->tempTuple()
+            .setNValue(0, ValueFactory::getBigIntValue(migrated_tuples)));
 
     VOLT_TRACE("TARGET TABLE - AFTER: %s\n", targetTable->debug("").c_str());
     // add to the planfragments count of modified tuples

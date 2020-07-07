@@ -239,8 +239,7 @@ NValue MaterializedViewTriggerForWrite::findMinMaxFallbackValueIndexed(const Tab
         if (negate_for_min == -1) {
             // min()
             selectedIndex->moveToKeyOrGreater(&m_minMaxSearchKeyTuple, minMaxCursor);
-        }
-        else {
+        } else {
             // max()
             selectedIndex->moveToGreaterThanKey(&m_minMaxSearchKeyTuple, minMaxCursor);
             selectedIndex->moveToPriorEntry(minMaxCursor);

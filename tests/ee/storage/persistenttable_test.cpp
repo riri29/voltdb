@@ -316,11 +316,10 @@ TEST_F(PersistentTableTest, DRTimestampColumn) {
 
     StdTuple newStdTuple{1901, "Nunavut Sannginivut"};
     tuple = findTuple(table, std::get<0>(newStdTuple));
-    TableTuple &tempTuple = table->copyIntoTempTuple(tuple);
-    tempTuple.setNValue(1, ValueFactory::getTempStringValue(std::get<1>(newStdTuple)));
     table->updateTupleWithSpecificIndexes(tuple,
-                                          tempTuple,
-                                          table->allIndexes());
+            table->copyIntoTempTuple(tuple)
+            .setNValue(1, ValueFactory::getTempStringValue(std::get<1>(newStdTuple))),
+            table->allIndexes());
 
     // Verify updated tuple has the new timestamp.
     int64_t drTimestampNew = ExecutorContext::getExecutorContext()->currentDRTimestamp();

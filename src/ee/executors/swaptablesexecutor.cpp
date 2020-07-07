@@ -127,10 +127,10 @@ bool SwapTablesExecutor::p_execute(NValueArray const& params) {
         // that skipped the replicated table work
         modified_tuples = s_modifiedTuples;
     }
-    TableTuple& count_tuple = m_tmpOutputTable->tempTuple();
-    count_tuple.setNValue(0, ValueFactory::getBigIntValue(modified_tuples));
     // try to put the tuple into the output table
-    m_tmpOutputTable->insertTempTuple(count_tuple);
+    m_tmpOutputTable->insertTempTuple(
+            m_tmpOutputTable->tempTuple()
+            .setNValue(0, ValueFactory::getBigIntValue(modified_tuples)));
     m_engine->addToTuplesModified(modified_tuples);
     return true;
 }

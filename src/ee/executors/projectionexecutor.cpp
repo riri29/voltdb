@@ -151,7 +151,4 @@ bool ProjectionExecutor::p_execute(const NValueArray &params) {
     return true;
 }
 
-ProjectionExecutor::~ProjectionExecutor() {
-}
-
 }

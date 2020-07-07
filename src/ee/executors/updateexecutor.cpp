@@ -228,10 +228,10 @@ bool UpdateExecutor::p_execute(const NValueArray &params) {
         // that skipped the replicated table work
         modified_tuples = s_modifiedTuples;
     }
-    TableTuple& count_tuple = m_node->getOutputTable()->tempTuple();
-    count_tuple.setNValue(0, ValueFactory::getBigIntValue(modified_tuples));
     // try to put the tuple into the output table
-    m_node->getOutputTable()->insertTuple(count_tuple);
+    m_node->getOutputTable()->insertTuple(
+            m_node->getOutputTable()->tempTuple()
+            .setNValue(0, ValueFactory::getBigIntValue(modified_tuples)));
 
     VOLT_TRACE("TARGET TABLE - AFTER: %s\n", targetTable->debug("").c_str());
     // TODO lets output result table here, not in result executor. same thing in

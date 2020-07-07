@@ -82,10 +82,10 @@ GroupOffset::GroupOffset(const GroupTables& tables, const NValue& groupId, const
     char data[searchKey.tupleLength()];
     searchKey.move(data);
 
-    searchKey.setNValue(static_cast<int32_t>(GroupOffsetTable::IndexColumn::GROUP_ID), groupId);
-    searchKey.setNValue(static_cast<int32_t>(GroupOffsetTable::IndexColumn::TOPIC), topic);
-    searchKey.setNValue(static_cast<int32_t>(GroupOffsetTable::IndexColumn::PARTITION),
-            ValueFactory::getIntegerValue(partition));
+    searchKey.setNValue(static_cast<int32_t>(GroupOffsetTable::IndexColumn::GROUP_ID), groupId)
+        .setNValue(static_cast<int32_t>(GroupOffsetTable::IndexColumn::TOPIC), topic)
+        .setNValue(static_cast<int32_t>(GroupOffsetTable::IndexColumn::PARTITION),
+                ValueFactory::getIntegerValue(partition));
 
     IndexCursor cursor(getTable()->schema());
     index->moveToKey(&searchKey, cursor);

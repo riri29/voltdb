@@ -16,15 +16,13 @@
  */
 
 
-#ifndef MATERIALIZEDSCANEXECUTOR_H
-#define MATERIALIZEDSCANEXECUTOR_H
+#pragma once
 
 #include "common/common.h"
 #include "common/valuevector.h"
 #include "executors/abstractexecutor.h"
 
-namespace voltdb
-{
+namespace voltdb {
 
     /**
      * Used for SQL-IN that are accelerated with indexes.
@@ -35,9 +33,7 @@ namespace voltdb
     class MaterializedScanExecutor : public AbstractExecutor {
     public:
         MaterializedScanExecutor(VoltDBEngine *engine, AbstractPlanNode* abstract_node)
-        : AbstractExecutor(engine, abstract_node)
-        {}
-        ~MaterializedScanExecutor();
+        : AbstractExecutor(engine, abstract_node) {}
     protected:
         bool p_init(AbstractPlanNode* abstract_node,
                     const ExecutorVector& executorVector);
@@ -45,4 +41,3 @@ namespace voltdb
     };
 }
 
-#endif // MATERIALIZEDSCANEXECUTOR_H

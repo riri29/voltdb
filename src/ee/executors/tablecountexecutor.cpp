@@ -66,9 +66,8 @@ bool TableCountExecutor::p_execute(const NValueArray &params) {
         rowCounts = target_table->visibleTupleCount();
     }
 
-    TableTuple& tmptup = output_table->tempTuple();
-    tmptup.setNValue(0, ValueFactory::getBigIntValue(rowCounts));
-    output_table->insertTuple(tmptup);
+    output_table->insertTuple(output_table->tempTuple()
+            .setNValue(0, ValueFactory::getBigIntValue(rowCounts)));
 
     VOLT_DEBUG("\n%s\n", output_table->debug().c_str());
     VOLT_DEBUG("Finished Table Counting");

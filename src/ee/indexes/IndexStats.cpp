@@ -155,9 +155,9 @@ vector<string> IndexStats::generateStatsColumnNames()
  * Update the stats tuple with the latest statistics available to this StatsSource.
  */
 void IndexStats::updateStatsTuple(TableTuple *tuple) {
-    tuple->setNValue( StatsSource::m_columnName2Index["INDEX_NAME"], m_indexName);
-    tuple->setNValue( StatsSource::m_columnName2Index["TABLE_NAME"], m_tableName);
-    tuple->setNValue( StatsSource::m_columnName2Index["INDEX_TYPE"], m_indexType);
+    tuple->setNValue(StatsSource::m_columnName2Index["INDEX_NAME"], m_indexName)
+        .setNValue(StatsSource::m_columnName2Index["TABLE_NAME"], m_tableName)
+        .setNValue(StatsSource::m_columnName2Index["INDEX_TYPE"], m_indexType);
     int64_t count = static_cast<int64_t>(m_index->getSize());
     int64_t mem_estimate_kb = m_index->getMemoryEstimate() / 1024;
 
@@ -168,17 +168,14 @@ void IndexStats::updateStatsTuple(TableTuple *tuple) {
         m_lastMemEstimate = m_index->getMemoryEstimate();
     }
 
-    tuple->setNValue(
-            StatsSource::m_columnName2Index["IS_UNIQUE"],
-            ValueFactory::getTinyIntValue(m_isUnique));
-    tuple->setNValue(
-                StatsSource::m_columnName2Index["IS_COUNTABLE"],
-                ValueFactory::getTinyIntValue(m_isCountable));
-    tuple->setNValue( StatsSource::m_columnName2Index["ENTRY_COUNT"],
-            ValueFactory::getBigIntValue(count));
-    tuple->setNValue(StatsSource::m_columnName2Index["MEMORY_ESTIMATE"],
-                     ValueFactory::
-                     getBigIntValue(mem_estimate_kb));
+    tuple->setNValue(StatsSource::m_columnName2Index["IS_UNIQUE"],
+            ValueFactory::getTinyIntValue(m_isUnique))
+        .setNValue(StatsSource::m_columnName2Index["IS_COUNTABLE"],
+                ValueFactory::getTinyIntValue(m_isCountable))
+        .setNValue(StatsSource::m_columnName2Index["ENTRY_COUNT"],
+                ValueFactory::getBigIntValue(count))
+        .setNValue(StatsSource::m_columnName2Index["MEMORY_ESTIMATE"],
+                ValueFactory::getBigIntValue(mem_estimate_kb));
 }
 
 /**

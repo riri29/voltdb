@@ -266,10 +266,9 @@ public:
         ::memset(tuple.address() + 1, 0, tuple.tupleLength() - 1);
         for (int ii = 0; ii < numTuples; ii++) {
             int value = rand();
-            tuple.setNValue(0, ValueFactory::getIntegerValue(m_primaryKeyIndex++));
-            tuple.setNValue(1, ValueFactory::getIntegerValue(value));
-            bool success = table->insertTuple(tuple);
-            if (!success) {
+            if (! table->insertTuple(
+                        tuple.setNValue(0, ValueFactory::getIntegerValue(m_primaryKeyIndex++))
+                        .setNValue(1, ValueFactory::getIntegerValue(value)))) {
                 std::cout << "Failed to add random unique tuple" << std::endl;
                 return;
             }

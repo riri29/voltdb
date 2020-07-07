@@ -27,7 +27,6 @@ namespace voltdb {
     public:
         TableCountExecutor(VoltDBEngine *engine, AbstractPlanNode* abstract_node)
             : AbstractExecutor(engine, abstract_node) {}
-        ~TableCountExecutor() {}
     protected:
         bool p_init(AbstractPlanNode* abstract_node, const ExecutorVector& executorVector);
         bool p_execute(const NValueArray& params);

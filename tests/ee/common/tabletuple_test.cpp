@@ -95,8 +95,8 @@ TEST_F(TableTupleTest, HiddenColumns) {
     NValue nvalVisibleString = ValueFactory::getStringValue("catdog");
     NValue nvalHiddenBigint = ValueFactory::getBigIntValue(1066);
 
-    tuple.setNValue(0, nvalVisibleBigint);
-    tuple.setNValue(1, nvalVisibleString);
+    tuple.setNValue(0, nvalVisibleBigint)
+        .setNValue(1, nvalVisibleString);
     tuple.setHiddenNValue(0, nvalHiddenBigint);
     tuple.setHiddenNValue(1, NValue::getNullValue(ValueType::tBIGINT));
 
@@ -133,9 +133,9 @@ TEST_F(TableTupleTest, ToJsonArray) {
     NValue nvalVisibleString = ValueFactory::getStringValue("数据库");
     NValue nvalHiddenBigint = ValueFactory::getBigIntValue(1066);
 
-    tuple.setNValue(0, nvalVisibleBigint);
-    tuple.setNValue(1, nvalVisibleString);
-    tuple.setNValue(2, ValueFactory::getNullValue());
+    tuple.setNValue(0, nvalVisibleBigint)
+        .setNValue(1, nvalVisibleString)
+        .setNValue(2, ValueFactory::getNullValue());
     tuple.setHiddenNValue(0, nvalHiddenBigint);
     tuple.setHiddenNValue(1, nvalHiddenBigint);
 
@@ -359,9 +359,9 @@ TEST_F(TableTupleTest, HiddenColumnSerialization) {
     NValue nvalHiddenMigrate = ValueFactory::getBigIntValue(1066);
     NValue nvalHiddenXdcr = ValueFactory::getBigIntValue(1067);
 
-    tuple.setNValue(0, nvalVisibleBigint);
-    tuple.setNValue(1, nvalVisibleString);
-    tuple.setNValue(2, nvalVisibleInt);
+    tuple.setNValue(0, nvalVisibleBigint)
+        .setNValue(1, nvalVisibleString)
+        .setNValue(2, nvalVisibleInt);
     tuple.setHiddenNValue(0, nvalHiddenMigrate);
     tuple.setHiddenNValue(1, nvalHiddenXdcr);
 

@@ -128,8 +128,7 @@ public:
         m_largeTuple->move(m_largeTupleMemory);
     }
 
-    size_t appendTuple(int64_t lastCommittedSpHandle, int64_t currentSpHandle, DRRecordType type = DR_RECORD_INSERT)
-    {
+    size_t appendTuple(int64_t lastCommittedSpHandle, int64_t currentSpHandle, DRRecordType type = DR_RECORD_INSERT) {
         // fill a tuple
         m_tuple->setNValue(0, ValueFactory::getIntegerValue(0));
         for (int col = 1; col < COLUMN_COUNT; col++) {
@@ -143,8 +142,7 @@ public:
                                currentSpHandle, *m_tuple, type);
     }
 
-    size_t appendLargeTuple(int64_t lastCommittedSpHandle, int64_t currentSpHandle, DRRecordType type = DR_RECORD_INSERT)
-    {
+    size_t appendLargeTuple(int64_t lastCommittedSpHandle, int64_t currentSpHandle, DRRecordType type = DR_RECORD_INSERT) {
         for (int col = 0; col < LARGE_TUPLE_COLUMN_COUNT; col++) {
             int64_t value = 10L;
             m_largeTuple->setNValue(col, ValueFactory::getBigIntValue(value));
