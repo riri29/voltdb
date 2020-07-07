@@ -28,7 +28,6 @@
 
 #include "common/SynchronizedThreadLock.h"
 #include "common/tabletuple.h"
-#include "common/TupleSchemaBuilder.h"
 #include "common/types.h"
 #include "common/ValueFactory.hpp"
 

@@ -231,8 +231,8 @@ TupleSchema* TupleSchema::createTupleSchema(
                                           columnInBytes);
 }
 
-void TupleSchema::freeTupleSchema(TupleSchema *schema) {
-    delete[] reinterpret_cast<char*>(schema);
+void TupleSchema::freeTupleSchema(TupleSchema const*schema) {
+    delete[] reinterpret_cast<char const*>(schema);
 }
 
 void TupleSchema::setColumnMetaData(uint16_t index, ValueType type, const int32_t length, bool allowNull,

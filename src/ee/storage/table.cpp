@@ -82,7 +82,7 @@ Table::~Table() {
         delete[] m_columnHeaderData;
 }
 
-void Table::initializeWithColumns(TupleSchema *schema, const std::vector<string> &columnNames, bool ownsTupleSchema) {
+void Table::initializeWithColumns(TupleSchema const* schema, const std::vector<string> &columnNames, bool ownsTupleSchema) {
 
     // copy the tuple schema
     if (m_ownsTupleSchema) {

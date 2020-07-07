@@ -78,16 +78,15 @@ TEST_F(TableTupleTest, ComputeNonInlinedMemory)
               nonInlinedTuple.getNonInlinedMemorySizeForPersistentTable());
 }
 
-TEST_F(TableTupleTest, HiddenColumns)
-{
+TEST_F(TableTupleTest, HiddenColumns) {
     UniqueEngine engine = UniqueEngineBuilder().build();
 
-    TupleSchemaBuilder builder(2, 2);
-    builder.setColumnAtIndex(0, ValueType::tBIGINT);
-    builder.setColumnAtIndex(1, ValueType::tVARCHAR, 256);
-    builder.setHiddenColumnAtIndex(0, HiddenColumn::XDCR_TIMESTAMP);
-    builder.setHiddenColumnAtIndex(1, HiddenColumn::MIGRATE_TXN);
-    ScopedTupleSchema schema(builder.build());
+    ScopedTupleSchema schema(TupleSchemaBuilder(2, 2)
+            .setColumnAtIndex(0, ValueType::tBIGINT)
+            .setColumnAtIndex(1, ValueType::tVARCHAR, 256)
+            .setHiddenColumnAtIndex(0, HiddenColumn::XDCR_TIMESTAMP)
+            .setHiddenColumnAtIndex(1, HiddenColumn::MIGRATE_TXN)
+            .build());
 
     StandAloneTupleStorage autoStorage(schema.get());
     TableTuple& tuple = autoStorage.tuple();
@@ -116,17 +115,16 @@ TEST_F(TableTupleTest, HiddenColumns)
     nvalVisibleString.free();
 }
 
-TEST_F(TableTupleTest, ToJsonArray)
-{
+TEST_F(TableTupleTest, ToJsonArray) {
     UniqueEngine engine = UniqueEngineBuilder().build();
 
-    TupleSchemaBuilder builder(3, 2);
-    builder.setColumnAtIndex(0, ValueType::tBIGINT);
-    builder.setColumnAtIndex(1, ValueType::tVARCHAR, 256);
-    builder.setColumnAtIndex(2, ValueType::tVARCHAR, 256);
-    builder.setHiddenColumnAtIndex(0, HiddenColumn::XDCR_TIMESTAMP);
-    builder.setHiddenColumnAtIndex(1, HiddenColumn::MIGRATE_TXN);
-    ScopedTupleSchema schema(builder.build());
+    ScopedTupleSchema schema(TupleSchemaBuilder(3, 2)
+            .setColumnAtIndex(0, ValueType::tBIGINT)
+            .setColumnAtIndex(1, ValueType::tVARCHAR, 256)
+            .setColumnAtIndex(2, ValueType::tVARCHAR, 256)
+            .setHiddenColumnAtIndex(0, HiddenColumn::XDCR_TIMESTAMP)
+            .setHiddenColumnAtIndex(1, HiddenColumn::MIGRATE_TXN)
+            .build());
 
     StandAloneTupleStorage autoStorage(schema.get());
     TableTuple& tuple = autoStorage.tuple();
@@ -345,14 +343,13 @@ TEST_F(TableTupleTest, HiddenColumnSerialization) {
     UniqueEngine engine = UniqueEngineBuilder().build();
     Pool pool;
 
-    TupleSchemaBuilder schemaBuilder(3, 2);
-    schemaBuilder.setColumnAtIndex(0, ValueType::tBIGINT);
-    schemaBuilder.setColumnAtIndex(1, ValueType::tVARCHAR, 60);
-    schemaBuilder.setColumnAtIndex(2, ValueType::tINTEGER);
-    schemaBuilder.setHiddenColumnAtIndex(0, HiddenColumn::MIGRATE_TXN);
-    schemaBuilder.setHiddenColumnAtIndex(1, HiddenColumn::XDCR_TIMESTAMP);
-
-    ScopedTupleSchema schema(schemaBuilder.build());
+    ScopedTupleSchema schema(TupleSchemaBuilder(3, 2)
+            .setColumnAtIndex(0, ValueType::tBIGINT)
+            .setColumnAtIndex(1, ValueType::tVARCHAR, 60)
+            .setColumnAtIndex(2, ValueType::tINTEGER)
+            .setHiddenColumnAtIndex(0, HiddenColumn::MIGRATE_TXN)
+            .setHiddenColumnAtIndex(1, HiddenColumn::XDCR_TIMESTAMP)
+            .build());
     char *storage = static_cast<char*>(pool.allocateZeroes(schema->tupleLength() + TUPLE_HEADER_SIZE));
     TableTuple tuple(storage, schema.get());
 

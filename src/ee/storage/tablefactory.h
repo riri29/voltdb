@@ -76,14 +76,14 @@ public:
     * instance is made. TableColumn is immutable.
     */
     static Table* getPersistentTable(
-        voltdb::CatalogId databaseId, char const* name, TupleSchema* schema,
+        voltdb::CatalogId databaseId, char const* name, TupleSchema const* schema,
         const std::vector<std::string> &columnNames, char *signature, bool tableIsMaterialized = false,
         int partitionColumn = 0, // defaults provided for ease of testing.
         TableType tableType = PERSISTENT, int tableAllocationTargetSize = 0, int tuplelimit = INT_MAX,
         bool drEnabled = false, bool isReplicated = false);
 
     static StreamedTable* getStreamedTableForTest(
-            voltdb::CatalogId databaseId, const std::string &name, TupleSchema* schema,
+            voltdb::CatalogId databaseId, const std::string &name, TupleSchema const* schema,
             const std::vector<std::string> &columnNames, ExportTupleStream* mockWrapper = NULL,
             bool exportEnabled = false);
 
@@ -96,10 +96,10 @@ public:
      * of tuples doesn't involve Undolog.
      */
     static TempTable* buildTempTable(
-        const std::string &name, TupleSchema* schema, const std::vector<std::string> &columnNames,
+        const std::string &name, TupleSchema const* schema, const std::vector<std::string> &columnNames,
         TempTableLimits const* limits);
 
-    static LargeTempTable* buildLargeTempTable(const std::string &name, TupleSchema* schema,
+    static LargeTempTable* buildLargeTempTable(const std::string &name, TupleSchema const* schema,
             const std::vector<std::string> &columnNames);
 
     /**
@@ -122,7 +122,7 @@ public:
 
 private:
     static void initCommon(voltdb::CatalogId databaseId, Table *table, const std::string &name,
-            TupleSchema *schema, const std::vector<std::string> &columnNames, const bool ownsTupleSchema);
+            TupleSchema  const*schema, const std::vector<std::string> &columnNames, const bool ownsTupleSchema);
 
     static void configureStats(char const* name, TableStats *tableStats);
 };

@@ -56,11 +56,16 @@
 
 namespace voltdb {
 
-class TableIndexPicker
-{
+class TableIndexPicker {
+    const TableIndexScheme &m_scheme;
+    const TupleSchema *m_keySchema;
+    const int m_keySize;
+    bool m_intsOnly;
+    bool m_inlinesOrColumnsOnly;
+    TableIndexType m_type;
+
     template <class TKeyType>
-    TableIndex *getInstanceForKeyType() const
-    {
+    TableIndex *getInstanceForKeyType() const {
         if (m_scheme.unique) {
             if (m_type != BALANCED_TREE_INDEX) {
                 return new CompactingHashUniqueIndex<TKeyType >(m_keySchema, m_scheme);
@@ -81,8 +86,7 @@ class TableIndexPicker
     }
 
     template <std::size_t KeySize>
-    TableIndex *getInstanceIfKeyFits()
-    {
+    TableIndex *getInstanceIfKeyFits() {
         if (m_keySize > KeySize) {
             return NULL;
         }
@@ -110,8 +114,7 @@ class TableIndexPicker
     }
 
     template <int ColCount>
-    TableIndex *getInstanceForHashedGenericColumns() const
-    {
+    TableIndex *getInstanceForHashedGenericColumns() const {
         if (m_scheme.unique) {
             return new CompactingHashUniqueIndex<GenericKey<ColCount> >(m_keySchema, m_scheme);
         } else {
@@ -122,8 +125,7 @@ class TableIndexPicker
 
 public:
 
-    TableIndex *getInstance()
-    {
+    TableIndex *getInstance() {
         TableIndex *result;
 /*
         if ((!m_intsOnly) && (m_type == HASH_TABLE_INDEX)) {
@@ -199,22 +201,13 @@ public:
         m_keySize(keySchema->tupleLength()),
         m_intsOnly(intsOnly),
         m_inlinesOrColumnsOnly(inlinesOrColumnsOnly),
-        m_type(scheme.type)
-    {}
-
-private:
-    const TableIndexScheme &m_scheme;
-    const TupleSchema *m_keySchema;
-    const int m_keySize;
-    bool m_intsOnly;
-    bool m_inlinesOrColumnsOnly;
-    TableIndexType m_type;
+        m_type(scheme.type) {}
 };
 
 static CoveringCellIndex* getCoveringCellIndexInstance(const TableIndexScheme &scheme) {
-    TupleSchemaBuilder builder(1);
-    builder.setColumnAtIndex(0, ValueType::tPOINT);
-    return new CoveringCellIndex(builder.buildKeySchema(), scheme);
+    return new CoveringCellIndex(
+            TupleSchemaBuilder(1).setColumnAtIndex(0, ValueType::tPOINT).buildKeySchema(),
+            scheme);
 }
 
 TableIndex *TableIndexFactory::getInstance(const TableIndexScheme &scheme) {
@@ -296,8 +289,7 @@ TableIndex *TableIndexFactory::getInstance(const TableIndexScheme &scheme) {
     return retval;
 }
 
-TableIndex *TableIndexFactory::cloneEmptyTreeIndex(const TableIndex& pkey_index)
-{
+TableIndex *TableIndexFactory::cloneEmptyTreeIndex(const TableIndex& pkey_index) {
     return pkey_index.cloneEmptyNonCountingTreeIndex();
 }
 

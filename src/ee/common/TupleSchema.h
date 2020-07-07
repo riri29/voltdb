@@ -145,7 +145,7 @@ public:
                                           const std::vector<uint16_t>& secondSet);
 
     /** Static factory method to destroy a TupleSchema object. Set to null after this call */
-    static void freeTupleSchema(TupleSchema *schema);
+    static void freeTupleSchema(TupleSchema const*schema);
 
     /** Return the number of (visible) columns in the schema for the tuple. */
     inline uint16_t columnCount() const;

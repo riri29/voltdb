@@ -186,7 +186,7 @@ private:
     PersistentTable(PersistentTable const&);
     PersistentTable operator=(PersistentTable const&);
 
-    virtual void initializeWithColumns(TupleSchema* schema,
+    virtual void initializeWithColumns(TupleSchema const* schema,
             std::vector<std::string> const& columnNames,
             bool ownsTupleSchema);
     void rollbackIndexChanges(TableTuple* tuple, int upto);

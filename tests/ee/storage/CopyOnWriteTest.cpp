@@ -147,7 +147,7 @@ public:
         int tokenCount = htonl(100);
         int partitionId = htonl(0);
 
-        m_engine->initialize(1,1, 0, partitionCount, 0, "", 0, 1024, DEFAULT_TEMP_TABLE_MEMORY, false);
+        m_engine->initialize(1,1, partitionId, partitionCount, 0, "", 0, 1024, DEFAULT_TEMP_TABLE_MEMORY, false);
         partitionCount = htonl(partitionCount);
         int data[3] = {partitionCount, tokenCount, partitionId};
         m_engine->updateHashinator((char*)data, NULL, 0);
@@ -239,16 +239,21 @@ public:
                                              m_primaryKeyIndexColumns,
                                              TableIndex::simplyIndexColumns(),
                                              true, true, false, m_tableSchema);
-        std::vector<voltdb::TableIndexScheme> indexes;
 
         if (m_table != NULL) {
             delete m_table;
         }
 
-        m_table = dynamic_cast<voltdb::PersistentTable*>(
-                voltdb::TableFactory::getPersistentTable(m_tableId, "Foo", m_tableSchema,
-                                                         m_columnNames, signature, false, 0, PERSISTENT,
-                                                         tableAllocationTargetSize));
+        m_table = dynamic_cast<voltdb::PersistentTable*>(voltdb::TableFactory::getPersistentTable(
+                    0,
+                    "Foo",
+                    m_tableSchema,
+                    m_columnNames,
+                    signature,
+                    false,
+                    0,
+                    PERSISTENT,
+                    tableAllocationTargetSize));
 
         TableIndex *pkeyIndex = TableIndexFactory::getInstance(indexScheme);
         assert(pkeyIndex);
@@ -282,20 +287,18 @@ public:
                 /*
                  * Undo the last quantum
                  */
-            case 0: {
+            case 0:
                 m_engine->undoUndoToken(m_undoToken);
                 m_tuplesDeleted -= m_tuplesDeletedInLastUndo;
                 m_tuplesInserted -= m_tuplesInsertedInLastUndo;
                 break;
-            }
 
                 /*
                  * Release the last quantum
                  */
-            case 1: {
+            case 1:
                 m_engine->releaseUndoToken(m_undoToken, false);
                 break;
-            }
         }
         m_engine->setUndoToken(++m_undoToken);
         ExecutorContext::getExecutorContext()->setupForPlanFragments(m_engine->getCurrentUndoQuantum(),
@@ -506,8 +509,7 @@ public:
         std::map<int64_t,size_t>::const_iterator ifound = m_valueSet.find(value);
         if (ifound != m_valueSet.end()) {
             os << ifound->second;
-        }
-        else {
+        } else {
             os << "???";
         }
         os << " modulus=" << value % m_npartitions;
@@ -1051,8 +1053,7 @@ public:
 
         if (undo) {
             m_engine->undoUndoToken(m_undoToken);
-        }
-        else {
+        } else {
             m_engine->releaseUndoToken(m_undoToken, false);
         }
         ExecutorContext::getExecutorContext()->setupForPlanFragments(m_engine->getCurrentUndoQuantum(),

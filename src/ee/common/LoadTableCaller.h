@@ -82,7 +82,7 @@ public:
     /**
      * @return the expected column count of the table being loaded for the given schema
      */
-    inline uint16_t getExpectedColumnCount(TupleSchema *schema) const {
+    inline uint16_t getExpectedColumnCount(TupleSchema const*schema) const {
         uint16_t hiddenColumnCount = schema->hiddenColumnCount();
 
         if (hiddenColumnCount > 0) {

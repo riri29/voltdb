@@ -22,16 +22,15 @@
  */
 
 #include "harness.h"
-#include "common/debuglog.h"
 #include "storage/TableTupleAllocator.hpp"
 #include <algorithm>
 #include <array>
 #include <cstdio>
 #include <cstdarg>
 #include <cstring>
+#include <functional>
 #include <random>
 #include <thread>
-#include <chrono>
 
 using TableTupleAllocatorTest = Test;
 // These tests are geared towards debug build, relying on some
@@ -2199,7 +2198,6 @@ TEST_F(TableTupleAllocatorTest, TestSnapIterEmptyTxnView) {
     ASSERT_EQ(AllocsPerChunk * 3, i);
     alloc.template thaw<truth>();
 }
-
 #endif
 
 int main() {

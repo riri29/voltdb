@@ -117,7 +117,7 @@ PersistentTable::PersistentTable(int partitionColumn,
     }
 }
 
-void PersistentTable::initializeWithColumns(TupleSchema* schema,
+void PersistentTable::initializeWithColumns(TupleSchema const* schema,
                                             std::vector<std::string> const& columnNames,
                                             bool ownsTupleSchema) {
     vassert(schema != nullptr);
