@@ -53,9 +53,7 @@ using namespace voltdb;
 class LargeTempTableSortTest : public TupleComparingTest {
 public:
 
-    LargeTempTableSortTest()
-    {
-    }
+    LargeTempTableSortTest() = default;
 
 protected:
 
@@ -281,7 +279,7 @@ TEST_F(LargeTempTableSortTest, sortLargeTempTable) {
     // Vary the max size of temp table storage, since this affects how
     // many blocks we can merge at once.
     std::vector<int64_t> tempTableMemoryLimits{
-        voltdb::DEFAULT_TEMP_TABLE_MEMORY, // 100 MB (default)
+        DEFAULT_TEMP_TABLE_MEMORY, // 100 MB (default)
         1024 * 1024 * 200   // 200 MB
     };
 
@@ -293,7 +291,7 @@ TEST_F(LargeTempTableSortTest, sortLargeTempTable) {
 #else // memcheck mode
     // Memcheck is slow, so just use the default TT storage size
     std::vector<int64_t> tempTableMemoryLimits{
-        voltdb::DEFAULT_TEMP_TABLE_MEMORY/4
+        DEFAULT_TEMP_TABLE_MEMORY/4
     };
 
     // Use larger tuples so the sorts are faster.  Also test all

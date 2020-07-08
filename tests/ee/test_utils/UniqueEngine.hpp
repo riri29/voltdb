@@ -21,8 +21,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef TESTS_EE_TEST_UTILS_UNIQUEENGINE_HPP
-#define TESTS_EE_TEST_UTILS_UNIQUEENGINE_HPP
+#pragma once
 
 #include "execution/VoltDBEngine.h"
 #include "common/SynchronizedThreadLock.h"
@@ -134,4 +133,3 @@ private:
     std::unique_ptr<voltdb::Topend> m_topend;
 };
 
-#endif // EE_TESTS_TEST_UTILS_UNIQUEENGINE_HPP

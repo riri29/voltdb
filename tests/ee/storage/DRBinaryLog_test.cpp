@@ -343,11 +343,11 @@ public:
         const vector<string> columnNames(columnNamesArray, columnNamesArray + COLUMN_COUNT);
 
 
-        m_table = reinterpret_cast<PersistentTable*>(voltdb::TableFactory::getPersistentTable(0, "P_TABLE", m_schema, columnNames, tableHandle, false, 0));
+        m_table = reinterpret_cast<PersistentTable*>(TableFactory::getPersistentTable(0, "P_TABLE", m_schema, columnNames, tableHandle, false, 0));
         {
             ScopedReplicatedResourceLock scopedLock;
             ExecuteWithMpMemory useMpMemory;
-            m_replicatedTable = reinterpret_cast<PersistentTable *>(voltdb::TableFactory::getPersistentTable(0,
+            m_replicatedTable = reinterpret_cast<PersistentTable *>(TableFactory::getPersistentTable(0,
                                                                                                              "R_TABLE",
                                                                                                              m_replicatedSchema,
                                                                                                              columnNames,
@@ -361,7 +361,7 @@ public:
 
         {
             ReplicaProcessContextSwitcher switcher;
-            m_tableReplica = reinterpret_cast<PersistentTable*>(voltdb::TableFactory::getPersistentTable(0,
+            m_tableReplica = reinterpret_cast<PersistentTable*>(TableFactory::getPersistentTable(0,
                                                                                                          "P_TABLE_REPLICA",
                                                                                                          m_schemaReplica,
                                                                                                          columnNames,
@@ -369,7 +369,7 @@ public:
                                                                                                          false, 0));
             ScopedReplicatedResourceLock scopedLock;
             ExecuteWithMpMemory useMpMemory;
-            m_replicatedTableReplica = reinterpret_cast<PersistentTable*>(voltdb::TableFactory::getPersistentTable(0,
+            m_replicatedTableReplica = reinterpret_cast<PersistentTable*>(TableFactory::getPersistentTable(0,
                                                                                                                    "R_TABLE_REPLICA",
                                                                                                                    m_replicatedSchemaReplica,
                                                                                                                    columnNames,
@@ -397,15 +397,15 @@ public:
         string otherColumnNamesArray[2] = { "C_TINYINT", "C_BIGINT" };
         const vector<string> otherColumnNames(otherColumnNamesArray, otherColumnNamesArray + 2);
 
-        m_otherTableWithIndex = reinterpret_cast<PersistentTable*>(voltdb::TableFactory::getPersistentTable(0, "OTHER_TABLE_1", m_otherSchemaWithIndex, otherColumnNames, otherTableHandleWithIndex, false, 0));
-        m_otherTableWithoutIndex = reinterpret_cast<PersistentTable*>(voltdb::TableFactory::getPersistentTable(0, "OTHER_TABLE_2", m_otherSchemaWithoutIndex, otherColumnNames, otherTableHandleWithoutIndex, false, 0));
+        m_otherTableWithIndex = reinterpret_cast<PersistentTable*>(TableFactory::getPersistentTable(0, "OTHER_TABLE_1", m_otherSchemaWithIndex, otherColumnNames, otherTableHandleWithIndex, false, 0));
+        m_otherTableWithoutIndex = reinterpret_cast<PersistentTable*>(TableFactory::getPersistentTable(0, "OTHER_TABLE_2", m_otherSchemaWithoutIndex, otherColumnNames, otherTableHandleWithoutIndex, false, 0));
 
         {
             ReplicaProcessContextSwitcher switcher;
-            m_otherTableWithIndexReplica = reinterpret_cast<PersistentTable *>(voltdb::TableFactory::getPersistentTable(
+            m_otherTableWithIndexReplica = reinterpret_cast<PersistentTable *>(TableFactory::getPersistentTable(
                     0, "OTHER_TABLE_1", m_otherSchemaWithIndexReplica, otherColumnNames, otherTableHandleWithIndex,
                     false, 0));
-            m_otherTableWithoutIndexReplica = reinterpret_cast<PersistentTable *>(voltdb::TableFactory::getPersistentTable(
+            m_otherTableWithoutIndexReplica = reinterpret_cast<PersistentTable *>(TableFactory::getPersistentTable(
                     0, "OTHER_TABLE_2", m_otherSchemaWithoutIndexReplica, otherColumnNames,
                     otherTableHandleWithoutIndex, false, 0));
         }
@@ -442,7 +442,7 @@ public:
         string singleColumnNameArray[1] = { "NOTHING" };
         const vector<string> singleColumnName(singleColumnNameArray, singleColumnNameArray + 1);
 
-        m_singleColumnTable = reinterpret_cast<PersistentTable*>(voltdb::TableFactory::getPersistentTable(0, "P_SINGLE_COLUMN_TABLE",
+        m_singleColumnTable = reinterpret_cast<PersistentTable*>(TableFactory::getPersistentTable(0, "P_SINGLE_COLUMN_TABLE",
                                                                                                           m_singleColumnSchema,
                                                                                                           singleColumnName,
                                                                                                           tableHandle + 1, false, 0));

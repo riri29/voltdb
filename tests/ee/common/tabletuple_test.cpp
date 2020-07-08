@@ -43,7 +43,7 @@ using namespace voltdb;
 class TableTupleTest : public Test {
 public:
     ~TableTupleTest() {
-        voltdb::globalDestroyOncePerProcess();
+        globalDestroyOncePerProcess();
     }
 };
 

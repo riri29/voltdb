@@ -60,8 +60,8 @@ public:
 };
 
 TEST_F(LargeTempTableBlockIdTest, InitializeAndTest) {
-    voltdb::LargeTempTableBlockId blockId(100, 0);
-    voltdb::LargeTempTableBlockId newBlockId(100, 1);
+    LargeTempTableBlockId blockId(100, 0);
+    LargeTempTableBlockId newBlockId(100, 1);
     EXPECT_EQ(0, blockId.getBlockCounter());
     EXPECT_EQ(100, blockId.getSiteId());
     for (int idx = 1; idx <= 100; idx += 1) {
@@ -73,18 +73,18 @@ TEST_F(LargeTempTableBlockIdTest, InitializeAndTest) {
         EXPECT_EQ(idx, newBlockId.getBlockCounter());
         EXPECT_EQ(100, newBlockId.getSiteId());
     }
-    blockId = voltdb::LargeTempTableBlockId(100, 1);
-    newBlockId = voltdb::LargeTempTableBlockId(110, 1);
+    blockId = LargeTempTableBlockId(100, 1);
+    newBlockId = LargeTempTableBlockId(110, 1);
     EXPECT_EQ(1, (blockId < newBlockId) ? 1 : 0);
     EXPECT_EQ(0, (blockId == newBlockId) ? 1 : 0);
 
-    blockId = voltdb::LargeTempTableBlockId(100, 1);
-    newBlockId = voltdb::LargeTempTableBlockId(100, 2);
+    blockId = LargeTempTableBlockId(100, 1);
+    newBlockId = LargeTempTableBlockId(100, 2);
     EXPECT_EQ(1, (blockId < newBlockId) ? 1 : 0);
     EXPECT_EQ(0, (blockId == newBlockId) ? 1 : 0);
 
-    blockId = voltdb::LargeTempTableBlockId(100, 1);
-    newBlockId = voltdb::LargeTempTableBlockId(100, 1);
+    blockId = LargeTempTableBlockId(100, 1);
+    newBlockId = LargeTempTableBlockId(100, 1);
     EXPECT_EQ(0, (blockId < newBlockId) ? 1 : 0);
     EXPECT_EQ(1, (blockId == newBlockId) ? 1 : 0);
 }

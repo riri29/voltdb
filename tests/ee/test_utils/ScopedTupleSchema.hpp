@@ -42,9 +42,7 @@
 class ScopedTupleSchema {
 public:
     ScopedTupleSchema(voltdb::TupleSchema* schema)
-        : m_schema(schema)
-    {
-    }
+        : m_schema(schema) { }
 
     voltdb::TupleSchema* get() {
         return m_schema;

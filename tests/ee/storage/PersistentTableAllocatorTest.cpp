@@ -57,25 +57,41 @@ using namespace std;
 using PersistentTableAllocatorTest = Test;
 
 /**
+ * Drop-in replacements for server configuration, and table
+ * schema, partition info, etc.
+ */
+struct Config1 {
+    static int32_t const SITES_PER_HOST = 1;
+    static vector<string> const COLUMN_NAMES;
+    static TupleSchema const* SCHEMA;
+};
+vector<string> const Config1::COLUMN_NAMES{"ID", "STRING", "GEOGRAPHY"};
+
+TupleSchema const* Config1::SCHEMA = TupleSchemaBuilder(3)
+    .setColumnAtIndex(0, ValueType::tINTEGER, false)
+    .setColumnAtIndex(1, ValueType::tVARCHAR, 512, false)
+    .setColumnAtIndex(2, ValueType::tGEOGRAPHY, 2048, false)
+    .build();
+
+/**
  * Realistic tests using persistent table for correctness of
  * snapshot process
  */
+template<typename Config>
 class ProcPersistenTable {
     unique_ptr<VoltDBEngine> m_engine{new VoltDBEngine{}};
     unique_ptr<PersistentTable> m_table;
     size_t m_rowId = 0;
 
     static char SIGNATURE[20];
-    static int32_t const SITES_PER_HOST = 1;
-    static vector<string> const COLUMN_NAMES;
-    static TupleSchema const* SCHEMA;
+    static NValue generate(size_t, ValueType, size_t limit);
 public:
     ProcPersistenTable() {
         int const partitionId = 0;
         m_engine->initialize(1,                    // cluster index
                 1,                                 // site id
                 partitionId,
-                SITES_PER_HOST,
+                Config1::SITES_PER_HOST,
                 0,                                 // host id
                 "Host_TableTupleAllocatorTest",    // host name
                 0,                                 // dr cluster id
@@ -95,8 +111,8 @@ public:
                 dynamic_cast<PersistentTable*>(TableFactory::getPersistentTable(
                         0,                         // database id
                         "Foo",                     // table name
-                        SCHEMA,
-                        COLUMN_NAMES,
+                        Config1::SCHEMA,
+                        Config1::COLUMN_NAMES,
                         SIGNATURE,
                         false,                     // is materialized
                         0)));                      // partition column
@@ -106,14 +122,34 @@ public:
     }
 };
 
-char ProcPersistenTable::SIGNATURE[20] = {};
-vector<string> const ProcPersistenTable::COLUMN_NAMES{"ID", "STRING", "GEOGRAPHY"};
+template<typename Config> char ProcPersistenTable<Config>::SIGNATURE[20] = {};
 
-TupleSchema const* ProcPersistenTable::SCHEMA = TupleSchemaBuilder(3)
-    .setColumnAtIndex(0, ValueType::tINTEGER, false)
-    .setColumnAtIndex(1, ValueType::tVARCHAR, 512, false)
-    .setColumnAtIndex(2, ValueType::tGEOGRAPHY, 2048, false)
-    .build();
+template<typename Config> NValue ProcPersistenTable<Config>::generate(
+        size_t id, ValueType vt, size_t limit) {
+    static char const postfix[] =
+        "abcdefgABCDEFGhijklmnHIJKLMNopqrstOPQRSTuvwxyzUVWXYZ`12345~!@#$%67890^&()=+[\\;',./]{}|:\"<>? ";
+    switch (vt) {
+        case ValueType::tINTEGER:
+            return ValueFactory::getIntegerValue(id);
+        case ValueType::tBIGINT:
+            return ValueFactory::getBigIntValue(id);
+        case ValueType::tVARCHAR:
+            {
+                auto const r = to_string(id).append(postfix);
+                return ValueFactory::getTempStringValue(
+                        limit > 0 && limit < r.length() ?
+                        r.substr(0, limit) : r);
+            }
+        case ValueType::tGEOGRAPHY:
+            {
+                string r("POLYGON((").append(to_string(id)).append(" 0, ");
+                for (auto i = 1lu; i < 400; ++i) {
+                    r.append(to_string(i)).append(" 0, ");
+                }
+                r.append(to_string(id)).append(" 0))");
+            }
+    }
+}
 
 TEST_F(PersistentTableAllocatorTest, Dummy) {
     ProcPersistenTable t;

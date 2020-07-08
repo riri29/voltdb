@@ -142,7 +142,7 @@ public:
         m_tuplesDeleted = 0;
         m_tuplesInsertedInLastUndo = 0;
         m_tuplesDeletedInLastUndo = 0;
-        m_engine = new voltdb::VoltDBEngine();
+        m_engine = new VoltDBEngine();
         int partitionCount = 1;
         int tokenCount = htonl(100);
         int partitionId = htonl(0);
@@ -162,30 +162,30 @@ public:
         m_columnNames.push_back("8");
         m_columnNames.push_back("9");
 
-        m_tableSchemaTypes.push_back(voltdb::ValueType::tINTEGER);
-        m_tableSchemaTypes.push_back(voltdb::ValueType::tINTEGER);
+        m_tableSchemaTypes.push_back(ValueType::tINTEGER);
+        m_tableSchemaTypes.push_back(ValueType::tINTEGER);
 
         //Filler columns
-        m_tableSchemaTypes.push_back(voltdb::ValueType::tBIGINT);
-        m_tableSchemaTypes.push_back(voltdb::ValueType::tBIGINT);
-        m_tableSchemaTypes.push_back(voltdb::ValueType::tBIGINT);
-        m_tableSchemaTypes.push_back(voltdb::ValueType::tBIGINT);
-        m_tableSchemaTypes.push_back(voltdb::ValueType::tBIGINT);
-        m_tableSchemaTypes.push_back(voltdb::ValueType::tBIGINT);
-        m_tableSchemaTypes.push_back(voltdb::ValueType::tBIGINT);
+        m_tableSchemaTypes.push_back(ValueType::tBIGINT);
+        m_tableSchemaTypes.push_back(ValueType::tBIGINT);
+        m_tableSchemaTypes.push_back(ValueType::tBIGINT);
+        m_tableSchemaTypes.push_back(ValueType::tBIGINT);
+        m_tableSchemaTypes.push_back(ValueType::tBIGINT);
+        m_tableSchemaTypes.push_back(ValueType::tBIGINT);
+        m_tableSchemaTypes.push_back(ValueType::tBIGINT);
 
         m_tupleWidth = (sizeof(int32_t) * 2) + (sizeof(int64_t) * 7);
 
-        m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(voltdb::ValueType::tINTEGER));
-        m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(voltdb::ValueType::tINTEGER));
+        m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(ValueType::tINTEGER));
+        m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(ValueType::tINTEGER));
 
-        m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(voltdb::ValueType::tBIGINT));
-        m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(voltdb::ValueType::tBIGINT));
-        m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(voltdb::ValueType::tBIGINT));
-        m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(voltdb::ValueType::tBIGINT));
-        m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(voltdb::ValueType::tBIGINT));
-        m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(voltdb::ValueType::tBIGINT));
-        m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(voltdb::ValueType::tBIGINT));
+        m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(ValueType::tBIGINT));
+        m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(ValueType::tBIGINT));
+        m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(ValueType::tBIGINT));
+        m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(ValueType::tBIGINT));
+        m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(ValueType::tBIGINT));
+        m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(ValueType::tBIGINT));
+        m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(ValueType::tBIGINT));
 
         m_tableSchemaAllowNull.push_back(false);
         m_tableSchemaAllowNull.push_back(false);
@@ -230,12 +230,12 @@ public:
 
     void initTable(int nparts_, int tableAllocationTargetSize) {
         m_npartitions = nparts_;
-        m_tableSchema = voltdb::TupleSchema::createTupleSchemaForTest(m_tableSchemaTypes,
+        m_tableSchema = TupleSchema::createTupleSchemaForTest(m_tableSchemaTypes,
                                                                m_tableSchemaColumnSizes,
                                                                m_tableSchemaAllowNull);
 
-        voltdb::TableIndexScheme indexScheme("primaryKeyIndex",
-                                             voltdb::BALANCED_TREE_INDEX,
+        TableIndexScheme indexScheme("primaryKeyIndex",
+                                             BALANCED_TREE_INDEX,
                                              m_primaryKeyIndexColumns,
                                              TableIndex::simplyIndexColumns(),
                                              true, true, false, m_tableSchema);
@@ -244,7 +244,7 @@ public:
             delete m_table;
         }
 
-        m_table = dynamic_cast<voltdb::PersistentTable*>(voltdb::TableFactory::getPersistentTable(
+        m_table = dynamic_cast<PersistentTable*>(TableFactory::getPersistentTable(
                     0,
                     "Foo",
                     m_tableSchema,
@@ -318,7 +318,7 @@ public:
         }
     }
 
-    void updateSpecificTuple(PersistentTable *table, voltdb::TableTuple tuple, T_ValueSet *setFrom = NULL, T_ValueSet *setTo = NULL) {
+    void updateSpecificTuple(PersistentTable *table, TableTuple tuple, T_ValueSet *setFrom = NULL, T_ValueSet *setTo = NULL) {
         TableTuple tempTuple = table->tempTuple();
         tempTuple.copy(tuple);
         int value = ::rand();
@@ -903,12 +903,12 @@ public:
                 new ReferenceSerializeInputBE(m_predicateBuffer, predicateOutput.position()));
     }
 
-    voltdb::ElasticContext *getElasticContext() {
-        voltdb::TableStreamer *streamer = dynamic_cast<voltdb::TableStreamer*>(m_table->m_tableStreamer.get());
+    ElasticContext *getElasticContext() {
+        TableStreamer *streamer = dynamic_cast<TableStreamer*>(m_table->m_tableStreamer.get());
         if (streamer != NULL) {
-            BOOST_FOREACH(voltdb::TableStreamer::StreamPtr &streamPtr, streamer->m_streams) {
+            BOOST_FOREACH(TableStreamer::StreamPtr &streamPtr, streamer->m_streams) {
                 if (streamPtr->m_streamType == TABLE_STREAM_ELASTIC_INDEX) {
-                    voltdb::ElasticContext *context = dynamic_cast<ElasticContext*>(streamPtr->m_context.get());
+                    ElasticContext *context = dynamic_cast<ElasticContext*>(streamPtr->m_context.get());
                     if (context != NULL) {
                         return context;
                     }
@@ -918,12 +918,12 @@ public:
         return NULL;
     }
 
-    voltdb::ElasticIndex *getElasticIndex() {
+    ElasticIndex *getElasticIndex() {
         return m_table->m_surgeon.m_index.get();
     }
 
     bool setElasticIndexTuplesPerCall(size_t nTuplesPerCall) {
-        voltdb::ElasticContext *context = getElasticContext();
+        ElasticContext *context = getElasticContext();
         if (context != NULL) {
             context->setTuplesPerCall(nTuplesPerCall);
             return true;
@@ -936,7 +936,7 @@ public:
         bool ok = m_table->activateStream(TABLE_STREAM_ELASTIC_INDEX, HiddenColumnFilter::NONE, 0, m_tableId, *predicateInput);
         ASSERT_TRUE(ok);
         // Force index streaming to need multiple streamMore() calls.
-        voltdb::ElasticContext *context = getElasticContext();
+        ElasticContext *context = getElasticContext();
         ASSERT_NE(NULL, context);
         bool success = setElasticIndexTuplesPerCall(20);
         ASSERT_TRUE(success);
@@ -1067,12 +1067,12 @@ public:
         ASSERT_EQ(expected,activated);
     }
 
-    voltdb::VoltDBEngine *m_engine;
-    voltdb::TupleSchema *m_tableSchema;
-    voltdb::PersistentTable *m_table;
-    voltdb::MockDRTupleStream drStream;
+    VoltDBEngine *m_engine;
+    TupleSchema *m_tableSchema;
+    PersistentTable *m_table;
+    MockDRTupleStream drStream;
     std::vector<std::string> m_columnNames;
-    std::vector<voltdb::ValueType> m_tableSchemaTypes;
+    std::vector<ValueType> m_tableSchemaTypes;
     std::vector<int32_t> m_tableSchemaColumnSizes;
     std::vector<bool> m_tableSchemaAllowNull;
     std::vector<int> m_primaryKeyIndexColumns;
@@ -1539,7 +1539,7 @@ public:
         m_test.m_shuffles.insert(*reinterpret_cast<const int64_t*>(sourceTuple.address() + 1));
     }
 
-    virtual TableStreamerInterface* cloneForTruncatedTable(voltdb::PersistentTableSurgeon&) {
+    virtual TableStreamerInterface* cloneForTruncatedTable(PersistentTableSurgeon&) {
         return NULL;
     }
 

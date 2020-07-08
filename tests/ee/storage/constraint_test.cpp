@@ -99,11 +99,11 @@ protected:
     char *m_exceptionBuffer;
 
     std::vector<std::string> columnNames;
-    std::vector<voltdb::ValueType> columnTypes;
+    std::vector<ValueType> columnTypes;
     std::vector<int32_t> columnSizes;
     std::vector<bool> columnNullables;
 
-    void addColumn(const char* name, voltdb::ValueType type, uint16_t size, bool allow_null) {
+    void addColumn(const char* name, ValueType type, uint16_t size, bool allow_null) {
         columnNames.push_back(name);
         columnTypes.push_back(type);
         columnSizes.push_back(size);
@@ -141,7 +141,7 @@ TEST_F(ConstraintTest, NotNull) {
         char name[16];
         snprintf(name, 16, "col%02d", ctr);
         addColumn(name, ValueType::tBIGINT,
-                  NValue::getTupleStorageSize(voltdb::ValueType::tBIGINT),
+                  NValue::getTupleStorageSize(ValueType::tBIGINT),
                   allow_null[ctr]);
     }
     setTable();
@@ -193,7 +193,7 @@ TEST_F(ConstraintTest, UniqueOneColumnNotNull) {
 
     std::vector<int> pkey_column_indices;
     pkey_column_indices.push_back(0);
-    TableIndexScheme pkey("idx_pkey", voltdb::BALANCED_TREE_INDEX,
+    TableIndexScheme pkey("idx_pkey", BALANCED_TREE_INDEX,
             pkey_column_indices, TableIndex::simplyIndexColumns(),
             true, true, false, NULL);
 

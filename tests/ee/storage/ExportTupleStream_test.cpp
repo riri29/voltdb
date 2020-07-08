@@ -58,14 +58,7 @@ static const int BUFFER_SIZE = 1024;
 
 class MockVoltDBEngine : public VoltDBEngine {
 public:
-    MockVoltDBEngine()
-    {
-        m_enginesOldest = NULL;
-        m_enginesNewest = NULL;
-    }
-
-    ~MockVoltDBEngine() { }
-
+    MockVoltDBEngine() = default;
 
     ExportTupleStream** getNewestExportStreamWithPendingRowsForAssignment() {
         return &m_enginesNewest;
@@ -81,8 +74,8 @@ public:
     }
 
 private:
-    ExportTupleStream* m_enginesOldest;
-    ExportTupleStream* m_enginesNewest;
+    ExportTupleStream* m_enginesOldest = nullptr;
+    ExportTupleStream* m_enginesNewest = nullptr;
 };
 
 class ExportTupleStreamTest : public Test {
@@ -189,7 +182,7 @@ public:
         if (m_schema)
             TupleSchema::freeTupleSchema(m_schema);
         delete m_engine;
-        voltdb::globalDestroyOncePerProcess();
+        globalDestroyOncePerProcess();
     }
 
 protected:

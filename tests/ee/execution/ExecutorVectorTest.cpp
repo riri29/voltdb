@@ -490,7 +490,7 @@ const std::string jsonPlan =
 class ExecutorVectorTest : public Test {
 public:
     ~ExecutorVectorTest() {
-        voltdb::globalDestroyOncePerProcess();
+        globalDestroyOncePerProcess();
     }
 };
 

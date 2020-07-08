@@ -86,10 +86,8 @@ using namespace voltdb;
 
 class IndexTest : public Test {
 public:
-    IndexTest() : table(NULL)
-    {}
-    ~IndexTest()
-    {
+    IndexTest() = default;
+    ~IndexTest() {
         delete table;
         delete[] m_exceptionBuffer;
         delete m_engine;
@@ -388,7 +386,7 @@ public:
     }
 
 protected:
-    PersistentTable* table;
+    PersistentTable* table = nullptr;
     char* m_exceptionBuffer;
     VoltDBEngine* m_engine;
     char signature[20];

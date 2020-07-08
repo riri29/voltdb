@@ -76,17 +76,17 @@ const char *kUniqueGenericTree = "UniqueGenericTree";
 
 struct Command {
     const char *op;
-    voltdb::TableTuple* key;
-    voltdb::TableTuple* key2;
+    TableTuple* key;
+    TableTuple* key2;
 };
 
-vector<voltdb::TableIndex*> currentIndexes;
-voltdb::TableIndex *currentIndex;
+vector<TableIndex*> currentIndexes;
+TableIndex *currentIndex;
 
-vector<voltdb::ValueType> currentColumnTypes;
+vector<ValueType> currentColumnTypes;
 vector<int32_t> currentColumnLengths;
 vector<bool> currentColumnAllowNull;
-map<string, voltdb::TableTuple*> tuples;
+map<string, TableTuple*> tuples;
 vector<char*> pool;
 vector<TupleSchema *> schemaCache;
 vector<TableTuple *> tupleCache;
@@ -95,7 +95,7 @@ int globalFailures = 0;
 vector<Command> currentCommands;
 int line = 0;
 
-bool commandIS(voltdb::TableTuple &key)
+bool commandIS(TableTuple &key)
 {
     //cout << "running is" << endl;
     //cout << " candidate key : " << key.tupleLength() << " - " << key.debug("") << endl;
@@ -104,14 +104,14 @@ bool commandIS(voltdb::TableTuple &key)
     return conflict.isNullTuple();
 }
 
-bool commandIF(voltdb::TableTuple &key)
+bool commandIF(TableTuple &key)
 {
     //cout << "running if" << endl;
     //cout << " candidate key : " << key.tupleLength() << " - " << key.debug("") << endl;
     return !commandIS(key);
 }
 
-bool commandLS(voltdb::TableTuple &key)
+bool commandLS(TableTuple &key)
 {
     //cout << "running ls" << endl;
     //cout << " candidate key : " << key.tupleLength() << " - " << key.debug("") << endl;
@@ -122,7 +122,7 @@ bool commandLS(voltdb::TableTuple &key)
         cout << "ls FAIL(moveToKey()) key length: " << key.tupleLength() << endl << key.debug("") << endl;
         return false;
     }
-    voltdb::TableTuple value = currentIndex->nextValueAtKey(indexCursor);
+    TableTuple value = currentIndex->nextValueAtKey(indexCursor);
     if (value.isNullTuple()) {
         cout << "ls FAIL(isNullTuple()) key length: " << key.tupleLength() << endl << key.debug("") << endl;
         return false;
@@ -135,7 +135,7 @@ bool commandLS(voltdb::TableTuple &key)
     return true;
 }
 
-bool commandLF(voltdb::TableTuple &key)
+bool commandLF(TableTuple &key)
 {
     //cout << "running lf" << endl;
     //cout << " candidate key : " << key.tupleLength() << " - " << key.debug("") << endl;
@@ -146,14 +146,14 @@ bool commandLF(voltdb::TableTuple &key)
     return !(currentIndex->moveToKey(&key, indexCursor));
 }
 
-bool commandDS(voltdb::TableTuple &key)
+bool commandDS(TableTuple &key)
 {
     //cout << "running ds" << endl;
     //cout << " candidate key : " << key.tupleLength() << " - " << key.debug("") << endl;
     return currentIndex->deleteEntry(&key);
 }
 
-bool commandDF(voltdb::TableTuple &key)
+bool commandDF(TableTuple &key)
 {
     //cout << "running df" << endl;
     //cout << " candidate key : " << key.tupleLength() << " - " << key.debug("") << endl;
@@ -188,7 +188,7 @@ void cleanUp()
 
 void setNewCurrent(const char *testName,
                    vector<const char*> indexNames,
-                   vector<voltdb::ValueType> columnTypes,
+                   vector<ValueType> columnTypes,
                    vector<int32_t> columnLengths,
                    vector<bool> columnAllowNull)
 {
@@ -198,7 +198,7 @@ void setNewCurrent(const char *testName,
     currentColumnLengths = columnLengths;
     currentColumnAllowNull = columnAllowNull;
 
-    voltdb::TupleSchema *schema = voltdb::TupleSchema::createTupleSchemaForTest(columnTypes, columnLengths, columnAllowNull);
+    TupleSchema *schema = TupleSchema::createTupleSchemaForTest(columnTypes, columnLengths, columnAllowNull);
     schemaCache.push_back(schema);
     // just pack the indices tightly
     vector<int> columnIndices;
@@ -207,55 +207,55 @@ void setNewCurrent(const char *testName,
     }
 
     BOOST_FOREACH(const char* indexName, indexNames) {
-        voltdb::TableIndex *index;
+        TableIndex *index;
 
         if (strcmp(indexName, kMultiIntsHash) == 0) {
-            voltdb::TableIndexScheme scheme(indexName, voltdb::HASH_TABLE_INDEX,
+            TableIndexScheme scheme(indexName, HASH_TABLE_INDEX,
                                             columnIndices, TableIndex::simplyIndexColumns(),
                                             false, false, false, schema);
-            index = voltdb::TableIndexFactory::getInstance(scheme);
+            index = TableIndexFactory::getInstance(scheme);
         }
         else if (strcmp(indexName, kMultiIntsTree) == 0) {
-            voltdb::TableIndexScheme scheme(indexName, voltdb::BALANCED_TREE_INDEX,
+            TableIndexScheme scheme(indexName, BALANCED_TREE_INDEX,
                                             columnIndices, TableIndex::simplyIndexColumns(),
                                             false, true, false, schema);
-            index = voltdb::TableIndexFactory::getInstance(scheme);
+            index = TableIndexFactory::getInstance(scheme);
         }
         else if (strcmp(indexName, kMultiGenericHash) == 0) {
-            voltdb::TableIndexScheme scheme(indexName, voltdb::HASH_TABLE_INDEX,
+            TableIndexScheme scheme(indexName, HASH_TABLE_INDEX,
                                             columnIndices, TableIndex::simplyIndexColumns(),
                                             false, false, false, schema);
-            index = voltdb::TableIndexFactory::getInstance(scheme);
+            index = TableIndexFactory::getInstance(scheme);
         }
         else if (strcmp(indexName, kMultiGenericTree) == 0) {
-            voltdb::TableIndexScheme scheme(indexName, voltdb::BALANCED_TREE_INDEX,
+            TableIndexScheme scheme(indexName, BALANCED_TREE_INDEX,
                                             columnIndices, TableIndex::simplyIndexColumns(),
                                             false, true, false, schema);
-            index = voltdb::TableIndexFactory::getInstance(scheme);
+            index = TableIndexFactory::getInstance(scheme);
         }
         else if (strcmp(indexName, kUniqueIntsHash) == 0) {
-            voltdb::TableIndexScheme scheme(indexName, voltdb::HASH_TABLE_INDEX,
+            TableIndexScheme scheme(indexName, HASH_TABLE_INDEX,
                                             columnIndices, TableIndex::simplyIndexColumns(),
                                             true, false, false, schema);
-            index = voltdb::TableIndexFactory::getInstance(scheme);
+            index = TableIndexFactory::getInstance(scheme);
         }
         else if (strcmp(indexName, kUniqueIntsTree) == 0) {
-            voltdb::TableIndexScheme scheme(indexName, voltdb::BALANCED_TREE_INDEX,
+            TableIndexScheme scheme(indexName, BALANCED_TREE_INDEX,
                                             columnIndices, TableIndex::simplyIndexColumns(),
                                             true, true, false, schema);
-            index = voltdb::TableIndexFactory::getInstance(scheme);
+            index = TableIndexFactory::getInstance(scheme);
         }
         else if (strcmp(indexName, kUniqueGenericHash) == 0) {
-            voltdb::TableIndexScheme scheme(indexName, voltdb::HASH_TABLE_INDEX,
+            TableIndexScheme scheme(indexName, HASH_TABLE_INDEX,
                                             columnIndices, TableIndex::simplyIndexColumns(),
                                             true, false, false, schema);
-            index = voltdb::TableIndexFactory::getInstance(scheme);
+            index = TableIndexFactory::getInstance(scheme);
         }
         else if (strcmp(indexName, kUniqueGenericTree) == 0) {
-            voltdb::TableIndexScheme scheme(indexName, voltdb::BALANCED_TREE_INDEX,
+            TableIndexScheme scheme(indexName, BALANCED_TREE_INDEX,
                                             columnIndices, TableIndex::simplyIndexColumns(),
                                             true, true, false, schema);
-            index = voltdb::TableIndexFactory::getInstance(scheme);
+            index = TableIndexFactory::getInstance(scheme);
         }
         else {
             cerr << "Unable to load index named: " << indexName << " on line: " << line << endl;
@@ -323,15 +323,15 @@ void runTest()
     cleanUp();
 }
 
-voltdb::TableTuple *tupleFromString(char *tupleStr, voltdb::TupleSchema *tupleSchema) {
+TableTuple *tupleFromString(char *tupleStr, TupleSchema *tupleSchema) {
     string key(tupleStr);
 
-    map<string, voltdb::TableTuple*>::iterator iter;
+    map<string, TableTuple*>::iterator iter;
     iter = tuples.find(key);
     if (iter != tuples.end())
         return iter->second;
 
-    voltdb::TableTuple *tuple = new TableTuple(tupleSchema);
+    TableTuple *tuple = new TableTuple(tupleSchema);
     tupleCache.push_back(tuple);
     char *data = new char[tuple->tupleLength()];
     pool.push_back(data);
@@ -341,34 +341,34 @@ voltdb::TableTuple *tupleFromString(char *tupleStr, voltdb::TupleSchema *tupleSc
 
     char *value = strtok(tupleStr, ",");
     for (int i = 0; i < currentColumnTypes.size(); i++) {
-        voltdb::ValueType type = currentColumnTypes[i];
+        ValueType type = currentColumnTypes[i];
         int64_t bi_value;
         double d_value;
         switch (type) {
-            case voltdb::ValueType::tTINYINT:
+            case ValueType::tTINYINT:
                 bi_value = static_cast<int64_t>(atoll(value));
                 tuple->setNValue(i, ValueFactory::getTinyIntValue(static_cast<int8_t>(bi_value)));
                 break;
-            case voltdb::ValueType::tSMALLINT:
+            case ValueType::tSMALLINT:
                 bi_value = static_cast<int64_t>(atoll(value));
                 tuple->setNValue(i, ValueFactory::getSmallIntValue(static_cast<int16_t>(bi_value)));
                 break;
-            case voltdb::ValueType::tINTEGER:
+            case ValueType::tINTEGER:
                 bi_value = static_cast<int64_t>(atoll(value));
                 tuple->setNValue(i, ValueFactory::getIntegerValue(static_cast<int32_t>(bi_value)));
                 break;
-            case voltdb::ValueType::tBIGINT:
+            case ValueType::tBIGINT:
                 bi_value = static_cast<int64_t>(atoll(value));
                 tuple->setNValue(i, ValueFactory::getBigIntValue(bi_value));
                 break;
-            case voltdb::ValueType::tDOUBLE:
+            case ValueType::tDOUBLE:
                 d_value = atof(value);
                 tuple->setNValue(i, ValueFactory::getDoubleValue(d_value));
                 break;
-            case voltdb::ValueType::tDECIMAL:
+            case ValueType::tDECIMAL:
                 tuple->setNValue(i, ValueFactory::getDecimalValueFromString(value));
                 break;
-            case voltdb::ValueType::tVARCHAR: {
+            case ValueType::tVARCHAR: {
                 NValue nv = ValueFactory::getStringValue(value);
                 tuple->setNValueAllocateForObjectCopies(i, nv);
                 nv.free();
@@ -416,7 +416,7 @@ int main(int argc, char **argv)
             char *schema = strtok(NULL, " ");
 
             // read all the types
-            vector<voltdb::ValueType> columnTypes;
+            vector<ValueType> columnTypes;
             vector<int32_t> columnLengths;
             vector<bool> columnAllowNull;
 
@@ -517,7 +517,7 @@ int main(int argc, char **argv)
                 cerr << "Operation code parse error on line: " << line << endl;
                 exit(-1);
             }
-            voltdb::TupleSchema *tupleSchema = voltdb::TupleSchema::createTupleSchemaForTest(currentColumnTypes,
+            TupleSchema *tupleSchema = TupleSchema::createTupleSchemaForTest(currentColumnTypes,
                                                                                       currentColumnLengths,
                                                                                       currentColumnAllowNull);
             schemaCache.push_back(tupleSchema);

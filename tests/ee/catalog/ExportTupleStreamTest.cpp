@@ -87,7 +87,7 @@ TEST_F(ExportTupleStreamTest, TestExportTableChange) {
     m_topend->addPlan(migratePlanId, migratePlan);
     // Prepare parameters for each fragment (statement):
     initParamsBuffer();
-    voltdb::ReferenceSerializeInputBE params(m_parameter_buffer.get(), m_smallBufferSize);
+    ReferenceSerializeInputBE params(m_parameter_buffer.get(), m_smallBufferSize);
     // The insert statement does not have any query parameters.
     boost::scoped_array<fragmentId_t> scopedPlanfragmentIds(new fragmentId_t[4]);
     fragmentId_t* planfragmentIds = scopedPlanfragmentIds.get();

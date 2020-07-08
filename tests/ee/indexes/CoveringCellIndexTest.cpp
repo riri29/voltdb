@@ -59,13 +59,13 @@ public:
 
     CoveringCellIndexTest() {
         std::srand(888);
-        assert (voltdb::ExecutorContext::getExecutorContext() == NULL);
+        assert (ExecutorContext::getExecutorContext() == NULL);
 
-        m_testPool.reset(new voltdb::Pool());
-        voltdb::UndoQuantum* wantNoQuantum = NULL;
-        voltdb::Topend* topless = NULL;
-        m_drStream.reset(new voltdb::DRTupleStream(0, 1024));
-        m_executorContext.reset(new voltdb::ExecutorContext(0,                // siteId
+        m_testPool.reset(new Pool());
+        UndoQuantum* wantNoQuantum = NULL;
+        Topend* topless = NULL;
+        m_drStream.reset(new DRTupleStream(0, 1024));
+        m_executorContext.reset(new ExecutorContext(0,                // siteId
                                                             0,                // partitionId
                                                             wantNoQuantum,    // undoQuantum
                                                             topless,          // topend
@@ -460,9 +460,9 @@ private:
         return static_cast<CoveringCellIndex*>(index);
     }
 
-    boost::scoped_ptr<voltdb::Pool> m_testPool;
-    boost::scoped_ptr<voltdb::ExecutorContext> m_executorContext;
-    boost::scoped_ptr<voltdb::AbstractDRTupleStream> m_drStream;
+    boost::scoped_ptr<Pool> m_testPool;
+    boost::scoped_ptr<ExecutorContext> m_executorContext;
+    boost::scoped_ptr<AbstractDRTupleStream> m_drStream;
 };
 
 // Test a larger workload of 1000 polygons.

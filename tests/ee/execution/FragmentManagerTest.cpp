@@ -39,7 +39,7 @@ public:
 };
 
 TEST_F(FragmentManagerTest, Basic) {
-    voltdb::FragmentManager fm(3);
+    FragmentManager fm(3);
 
     char plan1[] = "hello";
     char plan2[] = "hello";

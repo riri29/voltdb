@@ -21,8 +21,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef TUPLECOMPARINGTEST_HPP
-#define TUPLECOMPARINGTEST_HPP
+#pragma once
 
 #include <sstream>
 
@@ -247,4 +246,3 @@ bool TupleComparingTest::assertTuplesEqual(const voltdb::TableTuple& expectedTup
     return true;
 }
 
-#endif // TUPLECOMPARINGTEST_HPP

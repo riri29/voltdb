@@ -25,30 +25,30 @@
 #include "logging/LogManager.h"
 #include "logging/LogProxy.h"
 #include <stdint.h>
-
-voltdb::LoggerId loggerIds[] = {
-        voltdb::LOGGERID_SQL,
-        voltdb::LOGGERID_HOST
+using namespace voltdb;
+LoggerId loggerIds[] = {
+        LOGGERID_SQL,
+        LOGGERID_HOST
 };
 int numLoggers = 2;
 
-voltdb::LogLevel logLevels[] = {
-        voltdb::LOGLEVEL_ALL,
-        voltdb::LOGLEVEL_TRACE,
-        voltdb::LOGLEVEL_DEBUG,
-        voltdb::LOGLEVEL_INFO,
-        voltdb::LOGLEVEL_WARN,
-        voltdb::LOGLEVEL_ERROR,
-        voltdb::LOGLEVEL_FATAL,
-        voltdb::LOGLEVEL_OFF
+LogLevel logLevels[] = {
+        LOGLEVEL_ALL,
+        LOGLEVEL_TRACE,
+        LOGLEVEL_DEBUG,
+        LOGLEVEL_INFO,
+        LOGLEVEL_WARN,
+        LOGLEVEL_ERROR,
+        LOGLEVEL_FATAL,
+        LOGLEVEL_OFF
 };
 int numLogLevels = 8;
 
-class TestProxy : public voltdb::LogProxy {
+class TestProxy : public LogProxy {
 
 public:
-    voltdb::LoggerId lastLoggerId;
-    voltdb::LogLevel lastLogLevel;
+    LoggerId lastLoggerId;
+    LogLevel lastLogLevel;
     char *lastStatement;
     /**
      * Log a statement on behalf of the specified logger at the specified log level
@@ -56,7 +56,7 @@ public:
      * @param level Log level of the statement
      * @param statement null terminated UTF-8 string containing the statement to log
      */
-    virtual void log(voltdb::LoggerId loggerId, voltdb::LogLevel level, const char *statement) const {
+    virtual void log(LoggerId loggerId, LogLevel level, const char *statement) const {
         const_cast<TestProxy*>(this)->lastLoggerId = loggerId;
         const_cast<TestProxy*>(this)->lastLogLevel = level;
         const_cast<TestProxy*>(this)->lastStatement = const_cast<char*>(statement);
@@ -67,7 +67,7 @@ public:
 class LoggingTest : public Test {
     public:
         LoggingTest() : m_logManager(new TestProxy()) {}
-        voltdb::LogManager m_logManager;
+        LogManager m_logManager;
 };
 
 TEST_F(LoggingTest, TestManagerSetLevels) {
@@ -85,12 +85,12 @@ TEST_F(LoggingTest, TestManagerSetLevels) {
                 for (int zz = 0; zz < numLoggers; zz++) {
                     if (zz == loggerIndex) {
                         if (ii >= levelIndex) {
-                            ASSERT_TRUE(voltdb::LogManager::getThreadLogger(loggerIds[zz])->isLoggable(logLevels[ii]));
+                            ASSERT_TRUE(LogManager::getThreadLogger(loggerIds[zz])->isLoggable(logLevels[ii]));
                         } else {
-                            ASSERT_FALSE(voltdb::LogManager::getThreadLogger(loggerIds[zz])->isLoggable(logLevels[ii]));
+                            ASSERT_FALSE(LogManager::getThreadLogger(loggerIds[zz])->isLoggable(logLevels[ii]));
                         }
                     } else {
-                        ASSERT_FALSE(voltdb::LogManager::getThreadLogger(loggerIds[zz])->isLoggable(logLevels[ii]));
+                        ASSERT_FALSE(LogManager::getThreadLogger(loggerIds[zz])->isLoggable(logLevels[ii]));
                     }
                 }
             }
@@ -111,19 +111,19 @@ TEST_F(LoggingTest, TestLoggerUsesProxyLevels) {
             m_logManager.setLogLevels(logLevelsToSet);
             for (int ii = 1; ii < numLogLevels - 1; ii++) { //Should never log to ALL or OFF
                 for (int zz = 0; zz < numLoggers; zz++) {
-                    TestProxy *proxy = dynamic_cast<TestProxy*>(const_cast<voltdb::LogProxy*>(m_logManager.getLogProxy()));
-                    proxy->lastLoggerId = voltdb::LOGGERID_INVALID;
+                    TestProxy *proxy = dynamic_cast<TestProxy*>(const_cast<LogProxy*>(m_logManager.getLogProxy()));
+                    proxy->lastLoggerId = LOGGERID_INVALID;
                     if (zz == loggerIndex) {
                         if (ii >= levelIndex) {
-                            voltdb::LogManager::getThreadLogger(loggerIds[zz])->log( logLevels[ii], "foo");
-                            ASSERT_NE(static_cast<int>(proxy->lastLoggerId), voltdb::LOGGERID_INVALID);
+                            LogManager::getThreadLogger(loggerIds[zz])->log( logLevels[ii], "foo");
+                            ASSERT_NE(static_cast<int>(proxy->lastLoggerId), LOGGERID_INVALID);
                         } else {
-                            voltdb::LogManager::getThreadLogger(loggerIds[zz])->log(logLevels[ii], "foo");
-                            ASSERT_EQ(static_cast<int>(proxy->lastLoggerId), voltdb::LOGGERID_INVALID);
+                            LogManager::getThreadLogger(loggerIds[zz])->log(logLevels[ii], "foo");
+                            ASSERT_EQ(static_cast<int>(proxy->lastLoggerId), LOGGERID_INVALID);
                         }
                     } else {
-                        voltdb::LogManager::getThreadLogger(loggerIds[zz])->log(logLevels[ii], "foo");
-                        ASSERT_EQ(static_cast<int>(proxy->lastLoggerId), voltdb::LOGGERID_INVALID);
+                        LogManager::getThreadLogger(loggerIds[zz])->log(logLevels[ii], "foo");
+                        ASSERT_EQ(static_cast<int>(proxy->lastLoggerId), LOGGERID_INVALID);
                     }
                 }
             }

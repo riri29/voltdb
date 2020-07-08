@@ -38,6 +38,7 @@ namespace voltdb {
 class TupleSchema;
 }
 
+using namespace voltdb;
 /**
  * A topend that can be used in unit tests that test large queries.
  * This topend provides methods to store, load and release methods to
@@ -45,23 +46,16 @@ class TupleSchema;
  * in-memory std::map that mocks the filesystem.
  */
 class LargeTempTableTopend : public voltdb::DummyTopend {
-private:
     class Block {
     public:
-        Block(char* data, const voltdb::TupleSchema *schema)
-            : m_data(new char[voltdb::LargeTempTableBlock::BLOCK_SIZE_IN_BYTES])
+        Block(char* data, const TupleSchema *schema)
+            : m_data(new char[LargeTempTableBlock::BLOCK_SIZE_IN_BYTES])
             , m_schema(schema)
-            , m_origAddress(data)
-        {
-            ::memcpy(m_data.get(), data, voltdb::LargeTempTableBlock::BLOCK_SIZE_IN_BYTES);
+            , m_origAddress(data) {
+            ::memcpy(m_data.get(), data, LargeTempTableBlock::BLOCK_SIZE_IN_BYTES);
         }
 
-        Block()
-            : m_data()
-            , m_schema(NULL)
-            , m_origAddress(NULL)
-        {
-        }
+        Block() : m_data() , m_schema(NULL) , m_origAddress(NULL) { }
 
         char* data() {
             return m_data.get();
@@ -74,7 +68,7 @@ private:
 
         std::string debug() const {
             std::ostringstream oss;
-            voltdb::TableTuple tuple{m_data.get(), m_schema};
+            TableTuple tuple{m_data.get(), m_schema};
             oss << "First tuple: " << tuple.debugSkipNonInlineData() << "\n";
             return oss.str();
         }
@@ -85,13 +79,13 @@ private:
 
     private:
         std::unique_ptr<char[]> m_data;
-        const voltdb::TupleSchema* m_schema;
+        const TupleSchema* m_schema;
         char* m_origAddress;
     };
-    std::map<voltdb::LargeTempTableBlockId, Block*> m_map;
+    std::map<LargeTempTableBlockId, Block*> m_map;
 public:
 
-    bool storeLargeTempTableBlock(voltdb::LargeTempTableBlock* block) {
+    bool storeLargeTempTableBlock(LargeTempTableBlock* block) {
         assert (m_map.count(block->id()) == 0);
 
         std::unique_ptr<char[]> storage = block->releaseData();
@@ -101,21 +95,21 @@ public:
         return true;
     }
 
-    bool loadLargeTempTableBlock(voltdb::LargeTempTableBlock* block) {
+    bool loadLargeTempTableBlock(LargeTempTableBlock* block) {
         auto it = m_map.find(block->id());
         assert (it != m_map.end());
         Block *storedBlock = it->second;
 
         assert (*(reinterpret_cast<char**>(storedBlock->data())) == storedBlock->origAddress());
-        std::unique_ptr<char[]> storage{new char[voltdb::LargeTempTableBlock::BLOCK_SIZE_IN_BYTES]};
-        ::memcpy(storage.get(), storedBlock->data(), voltdb::LargeTempTableBlock::BLOCK_SIZE_IN_BYTES);
+        std::unique_ptr<char[]> storage{new char[LargeTempTableBlock::BLOCK_SIZE_IN_BYTES]};
+        ::memcpy(storage.get(), storedBlock->data(), LargeTempTableBlock::BLOCK_SIZE_IN_BYTES);
         block->setData(std::move(storage));
         assert(block->activeTupleCount() == storedBlock->activeTupleCount());
 
         return true;
     }
 
-    bool releaseLargeTempTableBlock(voltdb::LargeTempTableBlockId blockId) {
+    bool releaseLargeTempTableBlock(LargeTempTableBlockId blockId) {
         auto it = m_map.find(blockId);
         if (it == m_map.end()) {
             assert(false);

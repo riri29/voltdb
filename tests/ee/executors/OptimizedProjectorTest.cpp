@@ -132,7 +132,7 @@ static TupleSchema* createSchemaEz(const std::vector<TypeAndSize> &types) {
 
 enum TableType { TEMP, PERSISTENT };
 
-static voltdb::Table* createTableEz(TableType tableType, const std::vector<TypeAndSize> &types) {
+static Table* createTableEz(TableType tableType, const std::vector<TypeAndSize> &types) {
 
     const std::string tableName = "a_table";
 
@@ -147,13 +147,13 @@ static voltdb::Table* createTableEz(TableType tableType, const std::vector<TypeA
         ++i;
     }
 
-    voltdb::Table* tbl = NULL;
+    Table* tbl = NULL;
     if (tableType == PERSISTENT) {
         char signature[20];
-        tbl = voltdb::TableFactory::getPersistentTable(DATABASE_ID, tableName.c_str(), schema, names, signature);
+        tbl = TableFactory::getPersistentTable(DATABASE_ID, tableName.c_str(), schema, names, signature);
     }
     else {
-        tbl = voltdb::TableFactory::buildTempTable(tableName, schema, names, NULL);
+        tbl = TableFactory::buildTempTable(tableName, schema, names, NULL);
     }
 
     return tbl;
@@ -270,7 +270,7 @@ public:
                                      const OptimizedProjector& baselineProjector,
                                      double baselineRate) {
 
-        boost::scoped_ptr<voltdb::Table> dstTable(createTableEz(eetest::TEMP, dstTableTypes));
+        boost::scoped_ptr<Table> dstTable(createTableEz(eetest::TEMP, dstTableTypes));
         boost::timer t;
 
         t.restart();
@@ -300,7 +300,7 @@ public:
 
         TupleSchema* dstSchema = createSchemaEz(tableTypes);
 
-        boost::scoped_ptr<voltdb::Table> srcTable(createTableEz(eetest::PERSISTENT, tableTypes));
+        boost::scoped_ptr<Table> srcTable(createTableEz(eetest::PERSISTENT, tableTypes));
         eetest::fillTable(srcTable.get(), NUM_ROWS);
 
         std::cout << "\n";
@@ -504,15 +504,15 @@ int main(int argc, char* argv[]) {
             printUsageAndExit(argv[0]);
         }
     }
+    using namespace voltdb;
+    assert (ExecutorContext::getExecutorContext() == NULL);
 
-    assert (voltdb::ExecutorContext::getExecutorContext() == NULL);
-
-    boost::scoped_ptr<voltdb::Pool> testPool(new voltdb::Pool());
-    voltdb::UndoQuantum* wantNoQuantum = NULL;
-    voltdb::Topend* topless = NULL;
-    boost::scoped_ptr<voltdb::AbstractDRTupleStream> drStream(new voltdb::DRTupleStream(0, 1024));
-    boost::scoped_ptr<voltdb::ExecutorContext>
-        executorContext(new voltdb::ExecutorContext(0,              // siteId
+    boost::scoped_ptr<Pool> testPool(new Pool());
+    UndoQuantum* wantNoQuantum = NULL;
+    Topend* topless = NULL;
+    boost::scoped_ptr<AbstractDRTupleStream> drStream(new DRTupleStream(0, 1024));
+    boost::scoped_ptr<ExecutorContext>
+        executorContext(new ExecutorContext(0,              // siteId
                                                     0,              // partitionId
                                                     wantNoQuantum,  // undoQuantum
                                                     topless,        // topend

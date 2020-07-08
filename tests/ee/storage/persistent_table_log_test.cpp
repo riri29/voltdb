@@ -44,7 +44,7 @@ using namespace voltdb;
 class PersistentTableLogTest : public Test {
 public:
     PersistentTableLogTest() {
-        m_engine = new voltdb::VoltDBEngine();
+        m_engine = new VoltDBEngine();
         int partitionCount = 1;
         m_engine->initialize(1, 1, 0, partitionCount, 0, "", 0, 1024, DEFAULT_TEMP_TABLE_MEMORY, true);
         partitionCount = htonl(partitionCount);
@@ -61,23 +61,23 @@ public:
         m_columnNames.push_back("9");
         m_columnNames.push_back("10");
 
-        m_tableSchemaTypes.push_back(voltdb::ValueType::tBIGINT);
-        m_tableSchemaTypes.push_back(voltdb::ValueType::tTINYINT);
-        m_tableSchemaTypes.push_back(voltdb::ValueType::tINTEGER);
-        m_tableSchemaTypes.push_back(voltdb::ValueType::tBIGINT);
-        m_tableSchemaTypes.push_back(voltdb::ValueType::tSMALLINT);
-        m_tableSchemaTypes.push_back(voltdb::ValueType::tDOUBLE);
-        m_tableSchemaTypes.push_back(voltdb::ValueType::tVARCHAR);
-        m_tableSchemaTypes.push_back(voltdb::ValueType::tVARCHAR);
-        m_tableSchemaTypes.push_back(voltdb::ValueType::tVARCHAR);
-        m_tableSchemaTypes.push_back(voltdb::ValueType::tVARCHAR);
+        m_tableSchemaTypes.push_back(ValueType::tBIGINT);
+        m_tableSchemaTypes.push_back(ValueType::tTINYINT);
+        m_tableSchemaTypes.push_back(ValueType::tINTEGER);
+        m_tableSchemaTypes.push_back(ValueType::tBIGINT);
+        m_tableSchemaTypes.push_back(ValueType::tSMALLINT);
+        m_tableSchemaTypes.push_back(ValueType::tDOUBLE);
+        m_tableSchemaTypes.push_back(ValueType::tVARCHAR);
+        m_tableSchemaTypes.push_back(ValueType::tVARCHAR);
+        m_tableSchemaTypes.push_back(ValueType::tVARCHAR);
+        m_tableSchemaTypes.push_back(ValueType::tVARCHAR);
 
-        m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(voltdb::ValueType::tBIGINT));
-        m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(voltdb::ValueType::tTINYINT));
-        m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(voltdb::ValueType::tINTEGER));
-        m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(voltdb::ValueType::tBIGINT));
-        m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(voltdb::ValueType::tSMALLINT));
-        m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(voltdb::ValueType::tDOUBLE));
+        m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(ValueType::tBIGINT));
+        m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(ValueType::tTINYINT));
+        m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(ValueType::tINTEGER));
+        m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(ValueType::tBIGINT));
+        m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(ValueType::tSMALLINT));
+        m_tableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(ValueType::tDOUBLE));
         m_tableSchemaColumnSizes.push_back(300);
         m_tableSchemaColumnSizes.push_back(10);
         m_tableSchemaColumnSizes.push_back(500);
@@ -103,10 +103,10 @@ public:
         m_narrowColumnNames.push_back("1");
         m_narrowColumnNames.push_back("2");
 
-        m_narrowTableSchemaTypes.push_back(voltdb::ValueType::tBIGINT);
-        m_narrowTableSchemaTypes.push_back(voltdb::ValueType::tVARCHAR);
+        m_narrowTableSchemaTypes.push_back(ValueType::tBIGINT);
+        m_narrowTableSchemaTypes.push_back(ValueType::tVARCHAR);
 
-        m_narrowTableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(voltdb::ValueType::tBIGINT));
+        m_narrowTableSchemaColumnSizes.push_back(NValue::getTupleStorageSize(ValueType::tBIGINT));
         m_narrowTableSchemaColumnSizes.push_back(15);
 
         m_narrowTableSchemaAllowNull.push_back(false);
@@ -118,7 +118,7 @@ public:
     ~PersistentTableLogTest() {
         delete m_engine;
         delete m_table;
-        voltdb::globalDestroyOncePerProcess();
+        globalDestroyOncePerProcess();
     }
 
     void initTable(bool withPK = true) {
@@ -131,7 +131,7 @@ public:
         if ( ! withPK ) {
             return;
         }
-        voltdb::TableIndexScheme indexScheme("primaryKeyIndex",
+        TableIndexScheme indexScheme("primaryKeyIndex",
                                              BALANCED_TREE_INDEX,
                                              m_primaryKeyIndexColumns,
                                              TableIndex::simplyIndexColumns(),
@@ -182,13 +182,13 @@ private:
 TEST_F(PersistentTableLogTest, InsertDeleteThenUndoOneTest) {
     initTable();
     tableutil::addRandomTuples(m_table, 1000);
-    voltdb::TableTuple tuple(m_tableSchema);
+    TableTuple tuple(m_tableSchema);
 
     tableutil::getRandomTuple(m_table, tuple);
 
     ASSERT_FALSE( m_table->lookupTupleForUndo(tuple).isNullTuple());
 
-    voltdb::TableTuple tupleBackup(m_tableSchema);
+    TableTuple tupleBackup(m_tableSchema);
     tupleBackup.move(new char[tupleBackup.tupleLength() + TUPLE_HEADER_SIZE]);
     tupleBackup.copyForPersistentInsert(tuple);
     StackCleaner cleaner(tupleBackup);
@@ -234,14 +234,14 @@ TEST_F(PersistentTableLogTest, LoadTableThenUndoTest) {
     m_engine->updateExecutorContextUndoQuantumForTest();
 
     m_table->loadTuplesFrom(serialize_in, NULL);
-    voltdb::TableTuple tuple(m_tableSchema);
+    TableTuple tuple(m_tableSchema);
 
     tableutil::getRandomTuple(m_table, tuple);
     ASSERT_FALSE( m_table->lookupTupleForUndo(tuple).isNullTuple());
 
     // After calling undoUndoToken(), variable "tuple" is deactivated and the uninlined
     // data it contains maybe freed, the safe way is to copy the "tuple" before undo.
-    voltdb::TableTuple tupleBackup(m_tableSchema);
+    TableTuple tupleBackup(m_tableSchema);
     tupleBackup.move(new char[tupleBackup.tupleLength() + TUPLE_HEADER_SIZE]);
     tupleBackup.copyForPersistentInsert(tuple);
     StackCleaner cleaner(tupleBackup);
@@ -279,7 +279,7 @@ TEST_F(PersistentTableLogTest, LoadTableThenReleaseTest) {
     m_engine->updateExecutorContextUndoQuantumForTest();
 
     m_table->loadTuplesFrom(serialize_in, NULL);
-    voltdb::TableTuple tuple(m_tableSchema);
+    TableTuple tuple(m_tableSchema);
 
     tableutil::getRandomTuple(m_table, tuple);
     ASSERT_FALSE( m_table->lookupTupleForUndo(tuple).isNullTuple());
@@ -293,7 +293,7 @@ TEST_F(PersistentTableLogTest, LoadTableThenReleaseTest) {
 TEST_F(PersistentTableLogTest, InsertUpdateThenUndoOneTest) {
     initTable();
     tableutil::addRandomTuples(m_table, 1);
-    voltdb::TableTuple tuple(m_tableSchema);
+    TableTuple tuple(m_tableSchema);
 
     tableutil::getRandomTuple(m_table, tuple);
     //std::cout << "Retrieved random tuple " << std::endl << tuple.debugNoHeader() << std::endl;
@@ -303,14 +303,14 @@ TEST_F(PersistentTableLogTest, InsertUpdateThenUndoOneTest) {
     /*
      * A backup copy of what the tuple looked like before updates
      */
-    voltdb::TableTuple tupleBackup(m_tableSchema);
+    TableTuple tupleBackup(m_tableSchema);
     tupleBackup.move(new char[tupleBackup.tupleLength() + TUPLE_HEADER_SIZE]);
     tupleBackup.copyForPersistentInsert(tuple);
 
     /*
      * A copy of the tuple to modify and use as a source tuple when updating the new tuple.
      */
-    voltdb::TableTuple tupleCopy(m_tableSchema);
+    TableTuple tupleCopy(m_tableSchema);
     tupleCopy.move(new char[tupleCopy.tupleLength() + TUPLE_HEADER_SIZE]);
     tupleCopy.copyForPersistentInsert(tuple);
 
@@ -368,7 +368,7 @@ TEST_F(PersistentTableLogTest, LookupTupleForUndoNoPKTest) {
     tableutil::addDuplicateRandomTuples(m_table, 3);
 
     // assert that lookupTupleForUndo finds the correct tuple
-    voltdb::TableTuple tuple(m_tableSchema);
+    TableTuple tuple(m_tableSchema);
     tableutil::getRandomTuple(m_table, tuple);
     ASSERT_EQ(m_table->lookupTupleForUndo(tuple).address(), tuple.address());
 }

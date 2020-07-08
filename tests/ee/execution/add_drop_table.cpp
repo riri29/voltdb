@@ -85,12 +85,11 @@ class AddDropTableTest : public Test {
         ASSERT_TRUE(loadResult);
     }
 
-    ~AddDropTableTest()
-    {
+    ~AddDropTableTest() {
         delete m_engine;
         delete[] m_resultBuffer;
         delete[] m_exceptionBuffer;
-        voltdb::globalDestroyOncePerProcess();
+        globalDestroyOncePerProcess();
     }
 
 

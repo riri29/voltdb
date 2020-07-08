@@ -46,11 +46,11 @@
 using namespace voltdb;
 
 class PersistentTableTest : public TupleComparingTest {
+    boost::scoped_ptr<VoltDBEngine> m_engine;
+    int64_t m_undoToken = 0;
+    int64_t m_uniqueId = 0;
 public:
-    PersistentTableTest()
-        : m_undoToken(0)
-        , m_uniqueId(0)
-    {
+    PersistentTableTest() {
         m_engine.reset(new VoltDBEngine());
         m_engine->initialize(1,     // clusterIndex
                              1,     // siteId
@@ -60,19 +60,18 @@ public:
                              "",    // hostname
                              0,     // drClusterId
                              1024,  // defaultDrBufferSize
-                             voltdb::DEFAULT_TEMP_TABLE_MEMORY,
+                             DEFAULT_TEMP_TABLE_MEMORY,
                              true); // this is the loweest SiteId/PartitionId
         m_engine->setUndoToken(m_undoToken);
     }
-    ~PersistentTableTest()
-    {
+    ~PersistentTableTest() {
         m_engine.reset();
-        voltdb::globalDestroyOncePerProcess();
+        globalDestroyOncePerProcess();
     }
 
 protected:
 
-    voltdb::VoltDBEngine* getEngine() const {
+    VoltDBEngine* getEngine() const {
         return m_engine.get();
     }
 
@@ -227,10 +226,6 @@ protected:
         }
     }
 
-private:
-    boost::scoped_ptr<VoltDBEngine> m_engine;
-    int64_t m_undoToken;
-    int64_t m_uniqueId;
 };
 
 
@@ -272,7 +267,7 @@ TEST_F(PersistentTableTest, DRTimestampColumn) {
     ASSERT_EQ(true, table->hasDRTimestampColumn());
     ASSERT_EQ(0, table->getDRTimestampColumnIndex());
 
-    const voltdb::TupleSchema *schema = table->schema();
+    const TupleSchema *schema = table->schema();
     ASSERT_EQ(1, schema->hiddenColumnCount());
 
     typedef std::tuple<int64_t, std::string> StdTuple;
@@ -285,7 +280,7 @@ TEST_F(PersistentTableTest, DRTimestampColumn) {
     // Let's do some inserts into the table.
     beginWork();
 
-    voltdb::StandAloneTupleStorage storage(schema);
+    StandAloneTupleStorage storage(schema);
     TableTuple srcTuple = storage.tuple();
     BOOST_FOREACH(auto stdTuple, stdTuples) {
         Tools::initTuple(&srcTuple, stdTuple);

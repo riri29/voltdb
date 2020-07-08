@@ -716,14 +716,14 @@ TEST_F(FunctionTest, RepeatTooBig) {
     bool sawexception = false;
     try {
         ASSERT_EQ(testBinary(FUNC_REPEAT, "amanaplanacanalpanama", int64_t(1), "amanaplanacanalpanama", false), 0);
-    } catch (voltdb::SQLException &ex) {
+    } catch (SQLException &ex) {
         sawexception = true;
     }
     ASSERT_FALSE(sawexception);
     sawexception = false;
     try {
         ASSERT_EQ(testBinary(FUNC_REPEAT, "amanaplanacanalpanama", 1000000, "", false), 1);
-    } catch (voltdb::SQLException &ex) {
+    } catch (SQLException &ex) {
         sawexception = true;
     }
     ASSERT_TRUE(sawexception);
@@ -742,7 +742,7 @@ TEST_F(FunctionTest, RegularExpressionMatch) {
     sawexception = false;
     try {
         ASSERT_EQ(testBinary(FUNC_VOLT_REGEXP_POSITION, testString, std::string("[a-z](a]"), 0), 0);
-    } catch (voltdb::SQLException &ex) {
+    } catch (SQLException &ex) {
         sawexception = true;
     }
     ASSERT_TRUE(sawexception);
@@ -751,7 +751,7 @@ TEST_F(FunctionTest, RegularExpressionMatch) {
     sawexception = false;
     try {
         ASSERT_EQ(testTernary(FUNC_VOLT_REGEXP_POSITION, testString, "[a-z](\\d+)[A-Z]", "k", 0), 0);
-    } catch (voltdb::SQLException &ex) {
+    } catch (SQLException &ex) {
         sawexception = true;
     }
     ASSERT_TRUE(sawexception);

@@ -82,12 +82,12 @@ void uniqueFuzzIteration() {
     const int ITERATIONS = 10000;
 
     boost::unordered_map<int64_t,int64_t> stl;
-    voltdb::CompactingHashTable<int64_t,int64_t> volt(true);
+    CompactingHashTable<int64_t,int64_t> volt(true);
 
     std::pair<boost::unordered_map<int64_t,int64_t>::iterator, bool> insertSTLIter;
     boost::unordered_map<int64_t,int64_t>::iterator stlIter;
 
-    voltdb::CompactingHashTable<int64_t,int64_t>::iterator voltIter;
+    CompactingHashTable<int64_t,int64_t>::iterator voltIter;
 
     double mix = rand();
 
@@ -149,10 +149,10 @@ void multiFuzzIteration() {
 
     // data structures and iterators
     boost::unordered_multimap<int64_t,int64_t> stl;
-    voltdb::CompactingHashTable<int64_t,int64_t> volt(false);
+    CompactingHashTable<int64_t,int64_t> volt(false);
     boost::unordered_multimap<int64_t,int64_t>::iterator stlIter;
     boost::unordered_multimap<int64_t,int64_t>::iterator stlIter2;
-    voltdb::CompactingHashTable<int64_t,int64_t>::iterator voltIter;
+    CompactingHashTable<int64_t,int64_t>::iterator voltIter;
 
     // the main loop
     for (int i = 0; i < ITERATIONS; i++) {
@@ -235,8 +235,8 @@ TEST_F(CompactingHashTest, Fuzz) {
 }
 
 TEST_F(CompactingHashTest, MissingByKey) {
-    voltdb::CompactingHashTable<int64_t,int64_t> volt(false);
-    voltdb::CompactingHashTable<int64_t,int64_t>::iterator voltIter;
+    CompactingHashTable<int64_t,int64_t> volt(false);
+    CompactingHashTable<int64_t,int64_t>::iterator voltIter;
 
     volt.insert(1,1);
     voltIter = volt.find(1,1);
@@ -249,7 +249,7 @@ TEST_F(CompactingHashTest, MissingByKey) {
 TEST_F(CompactingHashTest, ShrinkAndGrowUnique) {
     const int ITERATIONS = 10000;
 
-    voltdb::CompactingHashTable<uint64_t,uint64_t> volt(true);
+    CompactingHashTable<uint64_t,uint64_t> volt(true);
 
     for (uint64_t i = 0; i < ITERATIONS; i++)
         ASSERT_TRUE(volt.insert(i, i) == NULL);
@@ -275,7 +275,7 @@ TEST_F(CompactingHashTest, ShrinkAndGrowUnique) {
 TEST_F(CompactingHashTest, ShrinkAndGrowMulti) {
     const int ITERATIONS = 10000;
 
-    voltdb::CompactingHashTable<uint64_t,uint64_t> volt(false);
+    CompactingHashTable<uint64_t,uint64_t> volt(false);
 
     for (uint64_t i = 0; i < ITERATIONS; i++)
         ASSERT_TRUE(volt.insert(i, i) == NULL);
@@ -302,7 +302,7 @@ TEST_F(CompactingHashTest, Benchmark) {
     const int ITERATIONS = 10000;
 
     boost::unordered_map<uint64_t,uint64_t> stl;
-    voltdb::CompactingHashTable<uint64_t,uint64_t> volt(true);
+    CompactingHashTable<uint64_t,uint64_t> volt(true);
 
     timeval tp;
     gettimeofday(&tp, NULL);
@@ -326,7 +326,7 @@ TEST_F(CompactingHashTest, Benchmark) {
     // printf("Time elapsed: %.2f\n", (t2 - t1) / static_cast<double>(1000));
     // fflush(stdout);
 
-    voltdb::CompactingHashTable<uint64_t,uint64_t>::iterator iter;
+    CompactingHashTable<uint64_t,uint64_t>::iterator iter;
 
     for (uint64_t val = 0; val < ITERATIONS; val++) {
         //cout << "Inserting: " << val << endl;
@@ -370,7 +370,7 @@ TEST_F(CompactingHashTest, BenchmarkDel) {
     const int ITERATIONS = 1000;
 
     boost::unordered_multimap<string,int> stl;
-    voltdb::CompactingHashTable<string,int> volt(false);
+    CompactingHashTable<string,int> volt(false);
 
     boost::unordered_multimap<string,int>::const_iterator iter_stl;
 
@@ -396,7 +396,7 @@ TEST_F(CompactingHashTest, BenchmarkDel) {
         stl.insert(std::pair<string,int>(val,i));
     }
 
-    voltdb::CompactingHashTable<string, int>::iterator iter;
+    CompactingHashTable<string, int>::iterator iter;
 
     // printf("Inserting into the VoltDB Map\n");
 
@@ -468,7 +468,7 @@ TEST_F(CompactingHashTest, BenchmarkMulti) {
     const int BATCH_COUNT = 1000;
 
     boost::unordered_multimap<string,int> stl;
-    voltdb::CompactingHashTable<string,int> volt(false);
+    CompactingHashTable<string,int> volt(false);
 
     boost::unordered_multimap<string,int>::const_iterator iter_stl;
 
@@ -481,7 +481,7 @@ TEST_F(CompactingHashTest, BenchmarkMulti) {
         }
     }
 
-    voltdb::CompactingHashTable<string, int>::iterator iter;
+    CompactingHashTable<string, int>::iterator iter;
 
     // printf("Inserting into the VoltDB Map\n");
 
@@ -552,10 +552,10 @@ TEST_F(CompactingHashTest, Trivial) {
     uint64_t two = 2;
     uint64_t three = 3;
     bool success;
-    voltdb::CompactingHashTable<uint64_t,uint64_t>::iterator iter;
+    CompactingHashTable<uint64_t,uint64_t>::iterator iter;
 
     // UNIQUE MAP
-    voltdb::CompactingHashTable<uint64_t,uint64_t> m(true);
+    CompactingHashTable<uint64_t,uint64_t> m(true);
     ASSERT_FALSE(m.hasCachedLastBuffer());
     success = (m.insert(two,two) == NULL);
     ASSERT_TRUE(success);
@@ -601,7 +601,7 @@ TEST_F(CompactingHashTest, Trivial) {
     ASSERT_TRUE(iter.isEnd());
 
     // MULTIMAP
-    voltdb::CompactingHashTable<uint64_t,uint64_t> m2(false);
+    CompactingHashTable<uint64_t,uint64_t> m2(false);
     success = (m2.insert(one,two) == NULL);
     ASSERT_TRUE(success);
     success = (m2.insert(one,one) == NULL);

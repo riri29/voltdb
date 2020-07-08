@@ -1432,7 +1432,7 @@ TEST_F(NValueTest, TestDivideByZero)
     {
         oneDecimal.op_divide(zeroDecimal);
     }
-    catch (voltdb::SQLException& e)
+    catch (SQLException& e)
     {
         caught_exception = true;
     }
@@ -1444,7 +1444,7 @@ TEST_F(NValueTest, TestDivideByZero)
     {
         oneDecimal.op_divide(zeroBigInt);
     }
-    catch (voltdb::SQLException& e)
+    catch (SQLException& e)
     {
         caught_exception = true;
     }
@@ -1456,7 +1456,7 @@ TEST_F(NValueTest, TestDivideByZero)
     {
         oneDecimal.op_divide(zeroDecimal);
     }
-    catch (voltdb::SQLException& e)
+    catch (SQLException& e)
     {
         caught_exception = true;
     }
@@ -1468,7 +1468,7 @@ TEST_F(NValueTest, TestDivideByZero)
     {
         oneDecimal.op_divide(smallDecimal);
     }
-    catch (voltdb::SQLException& e)
+    catch (SQLException& e)
     {
         caught_exception = true;
     }
@@ -1480,7 +1480,7 @@ TEST_F(NValueTest, TestDivideByZero)
     {
         oneBigInt.op_divide(zeroBigInt);
     }
-    catch (voltdb::SQLException& e)
+    catch (SQLException& e)
     {
         caught_exception = true;
     }
@@ -1492,7 +1492,7 @@ TEST_F(NValueTest, TestDivideByZero)
     {
         oneDouble.op_divide(zeroBigInt);
     }
-    catch (voltdb::SQLException& e)
+    catch (SQLException& e)
     {
         caught_exception = true;
     }
@@ -1504,7 +1504,7 @@ TEST_F(NValueTest, TestDivideByZero)
     {
         oneBigInt.op_divide(zeroDouble);
     }
-    catch (voltdb::SQLException& e)
+    catch (SQLException& e)
     {
         caught_exception = true;
     }
@@ -1516,7 +1516,7 @@ TEST_F(NValueTest, TestDivideByZero)
     {
         oneDouble.op_divide(zeroDouble);
     }
-    catch (voltdb::SQLException& e)
+    catch (SQLException& e)
     {
         caught_exception = true;
     }
@@ -1528,7 +1528,7 @@ TEST_F(NValueTest, TestDivideByZero)
     {
         oneDouble.op_divide(smallDouble);
     }
-    catch (voltdb::SQLException& e)
+    catch (SQLException& e)
     {
         caught_exception = true;
     }
@@ -1539,7 +1539,7 @@ TEST_F(NValueTest, TestDivideByZero)
     {
         oneBigInt.op_divide(smallDouble);
     }
-    catch (voltdb::SQLException& e)
+    catch (SQLException& e)
     {
         caught_exception = true;
     }
@@ -1945,7 +1945,7 @@ TEST_F(NValueTest, DecimalQuotients) {
        quo = rhs.op_divide(lhs);
        ASSERT_EQ(0, 1);
    }
-   catch (voltdb::SQLException& e) {
+   catch (SQLException& e) {
        ASSERT_EQ(1,1);
    }
 }
@@ -2160,10 +2160,10 @@ TEST_F(NValueTest, TestLike)
         const int testMatch = testMatches[ii];
         int foundMatches = 0;
 
-        voltdb::NValue pattern = voltdb::ValueFactory::getStringValue(testExpression);
+        NValue pattern = ValueFactory::getStringValue(testExpression);
         for (int jj = 0; jj < testData.size(); jj++) {
             const char *testDatum = testData[jj];
-            NValue testString = voltdb::ValueFactory::getStringValue(testDatum);
+            NValue testString = ValueFactory::getStringValue(testDatum);
 
             if (testString.like(pattern).isTrue()) {
                 foundMatches++;
@@ -2181,9 +2181,9 @@ TEST_F(NValueTest, TestLike)
     // Test an edge case Paul noticed during his review
     // https://github.com/VoltDB/voltdb/pull/33#discussion_r926110
     //
-    NValue value = voltdb::ValueFactory::getStringValue("XY");
-    NValue pattern1 = voltdb::ValueFactory::getStringValue("X%_");
-    NValue pattern2 = voltdb::ValueFactory::getStringValue("X%%");
+    NValue value = ValueFactory::getStringValue("XY");
+    NValue pattern1 = ValueFactory::getStringValue("X%_");
+    NValue pattern2 = ValueFactory::getStringValue("X%%");
     EXPECT_TRUE(value.like(pattern1).isTrue());
     EXPECT_TRUE(value.like(pattern2).isTrue());
     pattern2.free();
@@ -2191,8 +2191,7 @@ TEST_F(NValueTest, TestLike)
     value.free();
 }
 
-TEST_F(NValueTest, TestSubstring)
-{
+TEST_F(NValueTest, TestSubstring) {
     assert(ExecutorContext::getExecutorContext() == NULL);
     Pool* testPool = new Pool();
     getExecutorContextForTest(testPool);

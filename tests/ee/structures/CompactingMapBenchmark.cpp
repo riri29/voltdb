@@ -204,17 +204,17 @@ void BenchmarkRun(
     int* input = getRandomValues(DATA_SCALE, BIGGEST_VAL);
 
     // tree map and hash map
-    voltdb::CompactingMap<NormalKeyValuePair<int, int>, IntComparator, false> voltMap(false, IntComparator());
+    CompactingMap<NormalKeyValuePair<int, int>, IntComparator, false> voltMap(false, IntComparator());
     std::multimap<int,int> stlMap;
 
     boost::unordered_multimap<int, int> boostMap;
-    voltdb::CompactingHashTable<int,int> voltHash(false);
+    CompactingHashTable<int,int> voltHash(false);
 
     // Iterators
-    voltdb::CompactingMap<NormalKeyValuePair<int, int>, IntComparator, false>::iterator iter_volt_map;
+    CompactingMap<NormalKeyValuePair<int, int>, IntComparator, false>::iterator iter_volt_map;
     std::multimap<int, int>::const_iterator iter_stl;
     boost::unordered_multimap<int,int>::iterator iter_boost_map;
-    voltdb::CompactingHashTable<int,int>::iterator iter_volt_hash;
+    CompactingHashTable<int,int>::iterator iter_volt_hash;
 
     //
     // INSERT the data

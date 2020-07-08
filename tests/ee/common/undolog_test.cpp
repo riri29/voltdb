@@ -68,7 +68,7 @@ class UndoLogTest : public Test {
 public:
 
     UndoLogTest() {
-        m_undoLog = new voltdb::UndoLog();
+        m_undoLog = new UndoLog();
         staticReleaseIndex = 0;
         staticUndoneIndex = 0;
     }
@@ -78,7 +78,7 @@ public:
         for (int ii = 0; ii < numUndoQuantums; ii++) {
             const int64_t undoToken = (INT64_MIN + 1) + (ii * 3);
             undoTokens.push_back(undoToken);
-            voltdb::UndoQuantum *quantum = m_undoLog->generateUndoQuantum(undoToken);
+            UndoQuantum *quantum = m_undoLog->generateUndoQuantum(undoToken);
             std::vector<MockUndoActionHistory*> histories;
             for (int qq = 0; qq < numUndoActions; qq++) {
                 MockUndoActionHistory *history = new MockUndoActionHistory();
@@ -131,7 +131,7 @@ public:
         }
     }
 
-    voltdb::UndoLog *m_undoLog;
+    UndoLog *m_undoLog;
     std::vector<std::vector<MockUndoActionHistory*> > m_undoActionHistoryByQuantum;
 };
 

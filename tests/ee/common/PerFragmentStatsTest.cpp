@@ -46,7 +46,7 @@
 #include "storage/persistenttable.h"
 #include "test_utils/plan_testing_baseclass.h"
 #include "PerFragmentStatsTest.hpp"
-
+using namespace voltdb;
 class PerFragmentStatsTest : public PlanTestingBaseClass<EngineTestTopend> {
 public:
     PerFragmentStatsTest() :
@@ -63,22 +63,22 @@ public:
 protected:
     void addParameters(int32_t valueA, double valueB, std::string valueC) {
         prepareParamsBufferForNextFragment();
-        addParameterToBuffer(voltdb::ValueType::tINTEGER, &valueA);
-        addParameterToBuffer(voltdb::ValueType::tDOUBLE,  &valueB);
-        addParameterToBuffer(voltdb::ValueType::tVARCHAR, valueC.c_str(), valueC.size());
+        addParameterToBuffer(ValueType::tINTEGER, &valueA);
+        addParameterToBuffer(ValueType::tDOUBLE,  &valueB);
+        addParameterToBuffer(ValueType::tVARCHAR, valueC.c_str(), valueC.size());
     }
 
-    void validateRow(voltdb::TableTuple &tuple, int32_t valueA, double valueB, const char* valueC) {
-        ASSERT_EQ(valueA, voltdb::ValuePeeker::peekInteger(tuple.getNValue(0)));
-        ASSERT_EQ(valueB, voltdb::ValuePeeker::peekDouble(tuple.getNValue(1)));
+    void validateRow(TableTuple &tuple, int32_t valueA, double valueB, const char* valueC) {
+        ASSERT_EQ(valueA, ValuePeeker::peekInteger(tuple.getNValue(0)));
+        ASSERT_EQ(valueB, ValuePeeker::peekDouble(tuple.getNValue(1)));
 
         int32_t length = 0;
-        const char* data = voltdb::ValuePeeker::peekObject(tuple.getNValue(2), &length);
+        const char* data = ValuePeeker::peekObject(tuple.getNValue(2), &length);
         ASSERT_EQ(0, strncmp(valueC, data, length));
     }
 
     void validatePerFragmentStatsBuffer(int32_t expectedSucceededFragmentsCount, int32_t batchSize) {
-        voltdb::ReferenceSerializeInputBE perFragmentStatsBuffer(m_per_fragment_stats_buffer.get(), m_smallBufferSize);
+        ReferenceSerializeInputBE perFragmentStatsBuffer(m_per_fragment_stats_buffer.get(), m_smallBufferSize);
         // Skip the perFragmentTimingEnabled flag.
         perFragmentStatsBuffer.readByte();
         int32_t actualSucceededFragmentsCount = perFragmentStatsBuffer.readInt();
@@ -95,7 +95,7 @@ protected:
         }
     }
 
-    voltdb::PersistentTable* m_tableT;
+    PersistentTable* m_tableT;
     int m_tableT_id;
 };
 
@@ -103,7 +103,7 @@ TEST_F(PerFragmentStatsTest, TestPerFragmentStatsBuffer) {
     // catalogPayload, anInsertPlan, and aSelectPlan are defined in PerFragmentStatsTest.hpp
     initialize(catalogPayload);
     // Set perFragmentTimingEnabled bit to true, all the fragments will be timed.
-    voltdb::ReferenceSerializeOutput perFragmentStatsOutput;
+    ReferenceSerializeOutput perFragmentStatsOutput;
     perFragmentStatsOutput.initializeWithPosition(m_per_fragment_stats_buffer.get(), m_smallBufferSize, 0);
     perFragmentStatsOutput.writeByte(static_cast<int8_t>(1));
     // Add query plans.
@@ -125,7 +125,7 @@ TEST_F(PerFragmentStatsTest, TestPerFragmentStatsBuffer) {
     addParameters(1, 6.7, "string");
     // Fragment #4: SELECT * FROM T WHERE a = 1 and b >= 4.0 and C like 'str%';
     addParameters(1, 4.0, "str%%");
-    voltdb::ReferenceSerializeInputBE params(m_parameter_buffer.get(), m_smallBufferSize);
+    ReferenceSerializeInputBE params(m_parameter_buffer.get(), m_smallBufferSize);
     m_engine->resetPerFragmentStatsOutputBuffer();
     // This batch should succeed and return 0.
     ASSERT_EQ(0, m_engine->executePlanFragments(4, planfragmentIds, NULL, params, 1000, 1000, 1000, 1000, 1, false));
@@ -134,20 +134,20 @@ TEST_F(PerFragmentStatsTest, TestPerFragmentStatsBuffer) {
     // know how much of the buffer is actually used.  So we
     // need to query the engine.
     size_t resultSize = m_engine->getResultsSize();
-    voltdb::ReferenceSerializeInputBE resultBuffer(m_result_buffer.get(), resultSize);
-    boost::scoped_ptr<voltdb::TempTable> result(NULL);
+    ReferenceSerializeInputBE resultBuffer(m_result_buffer.get(), resultSize);
+    boost::scoped_ptr<TempTable> result(NULL);
     // Validate the result of the first 3 DMLs.
     for (int i = 0; i < 3; i++) {
         // "i > 0" is the boolean flag for determining whether to skip the message header.
-        result.reset(voltdb::loadTableFrom(resultBuffer, i > 0));
+        result.reset(loadTableFrom(resultBuffer, i > 0));
         validateDMLResultTable(result.get());
     }
     // Validate the result of the last SELECT statement.
-    result.reset(voltdb::loadTableFrom(resultBuffer, true));
+    result.reset(loadTableFrom(resultBuffer, true));
     ASSERT_TRUE(result);
-    const voltdb::TupleSchema* resultSchema = result->schema();
-    voltdb::TableTuple tuple(resultSchema);
-    voltdb::TableIterator iter = result->iterator();
+    const TupleSchema* resultSchema = result->schema();
+    TableTuple tuple(resultSchema);
+    TableIterator iter = result->iterator();
     ASSERT_TRUE(iter.next(tuple));
     validateRow(tuple, 1, 4.5, "string");
     ASSERT_TRUE(iter.next(tuple));

@@ -101,7 +101,7 @@ class TableAndIndexTest : public Test {
 
                 eContext->setupForPlanFragments(NULL, 44, 44, 44, 44, false);
 
-                vector<voltdb::ValueType> districtColumnTypes;
+                vector<ValueType> districtColumnTypes;
                 vector<int32_t> districtColumnLengths;
                 vector<bool> districtColumnAllowNull(11, true);
                 districtColumnAllowNull[0] = false;
@@ -143,7 +143,7 @@ class TableAndIndexTest : public Test {
                         true, false, false, districtReplicaTupleSchema);
 
 
-                vector<voltdb::ValueType> warehouseColumnTypes;
+                vector<ValueType> warehouseColumnTypes;
                 vector<int32_t> warehouseColumnLengths;
                 vector<bool> warehouseColumnAllowNull(9, true);
                 warehouseColumnAllowNull[0] = false;
@@ -175,7 +175,7 @@ class TableAndIndexTest : public Test {
                         warehouseIndex1ColumnIndices, TableIndex::simplyIndexColumns(),
                         true, true, false, warehouseTupleSchema);
 
-                vector<voltdb::ValueType> customerColumnTypes;
+                vector<ValueType> customerColumnTypes;
                 vector<int32_t> customerColumnLengths;
                 vector<bool> customerColumnAllowNull(21, true);
                 customerColumnAllowNull[0] = false;
@@ -283,13 +283,13 @@ class TableAndIndexTest : public Test {
                     "C_BALANCE", "C_YTD_PAYMENT", "C_PAYMENT_CNT", "C_DELIVERY_CNT", "C_DATA" };
                 const vector<string> customerColumnNames(customerColumnNamesArray, customerColumnNamesArray + 21 );
 
-                districtTable = reinterpret_cast<PersistentTable*>(voltdb::TableFactory::getPersistentTable(0,
+                districtTable = reinterpret_cast<PersistentTable*>(TableFactory::getPersistentTable(0,
                             "DISTRICT",
                             districtTupleSchema,
                             districtColumnNames,
                             signature,
                             false, 0));
-                districtTableReplica = reinterpret_cast<PersistentTable*>(voltdb::TableFactory::getPersistentTable(0,
+                districtTableReplica = reinterpret_cast<PersistentTable*>(TableFactory::getPersistentTable(0,
                             "DISTRICT",
                             districtReplicaTupleSchema,
                             districtColumnNames,
@@ -327,11 +327,11 @@ class TableAndIndexTest : public Test {
                 warehouseTempTable = TableFactory::buildCopiedTempTable("WAREHOUSE TEMP",
                         warehouseTable);
 
-                customerTable = reinterpret_cast<PersistentTable*>(voltdb::TableFactory::getPersistentTable(0, "CUSTOMER",
+                customerTable = reinterpret_cast<PersistentTable*>(TableFactory::getPersistentTable(0, "CUSTOMER",
                             customerTupleSchema, customerColumnNames,
                             signature, false,
                             0, PERSISTENT));
-                customerTableReplica = reinterpret_cast<PersistentTable*>(voltdb::TableFactory::getPersistentTable(0, "CUSTOMER",
+                customerTableReplica = reinterpret_cast<PersistentTable*>(TableFactory::getPersistentTable(0, "CUSTOMER",
                             customerReplicaTupleSchema, customerColumnNames,
                             signature, false,
                             0, PERSISTENT));

@@ -72,17 +72,17 @@
 
 #define NUM_OF_COLUMNS 4
 #define NUM_OF_TUPLES 10 //must be multiples of 2 for Update test.
-
+using namespace voltdb;
 //
 // Define the column information for the main test table
 // This is useful because it will allow us to check different types and other
 // configurations without having to dig down into the code
 //
-voltdb::ValueType COLUMN_TYPES[NUM_OF_COLUMNS]  = {
-    voltdb::ValueType::tINTEGER,
-    voltdb::ValueType::tVARCHAR,
-    voltdb::ValueType::tVARCHAR,
-    voltdb::ValueType::tINTEGER
+ValueType COLUMN_TYPES[NUM_OF_COLUMNS]  = {
+    ValueType::tINTEGER,
+    ValueType::tVARCHAR,
+    ValueType::tVARCHAR,
+    ValueType::tINTEGER
 };
 int COLUMN_SIZES[NUM_OF_COLUMNS]                = { 4, 8, 8, 4};
 bool COLUMN_ALLOW_NULLS[NUM_OF_COLUMNS]         = { false, true, true, false };
@@ -386,21 +386,21 @@ public:
         // started.
         //
         ASSERT_TRUE(m_partitioned_customer_table);
-        ASSERT_TRUE(voltdb::tableutil::addRandomTuples(m_partitioned_customer_table, NUM_OF_TUPLES));
+        ASSERT_TRUE(tableutil::addRandomTuples(m_partitioned_customer_table, NUM_OF_TUPLES));
         ASSERT_TRUE(m_replicated_customer_table);
 
         // Either use the lock or execute on a single thread when adding tuples to a replicate table
-        voltdb::ScopedReplicatedResourceLock replicatedResourceLock;
-        voltdb::SynchronizedThreadLock::assumeMpMemoryContext();
-        ASSERT_TRUE(voltdb::tableutil::addRandomTuples(m_replicated_customer_table, NUM_OF_TUPLES));
-        voltdb::SynchronizedThreadLock::assumeLocalSiteContext();
+        ScopedReplicatedResourceLock replicatedResourceLock;
+        SynchronizedThreadLock::assumeMpMemoryContext();
+        ASSERT_TRUE(tableutil::addRandomTuples(m_replicated_customer_table, NUM_OF_TUPLES));
+        SynchronizedThreadLock::assumeLocalSiteContext();
     }
 
 protected:
-    voltdb::PersistentTable* m_partitioned_customer_table;
+    PersistentTable* m_partitioned_customer_table;
     int m_partitioned_customer_table_id;
 
-    voltdb::PersistentTable* m_replicated_customer_table;
+    PersistentTable* m_replicated_customer_table;
     int m_replicated_customer_table_id;
 };
 // Create a random seed once and for all, and use it always.
@@ -548,7 +548,7 @@ TEST_F(ExecutionEngineTest, Execute_PlanFragmentInfo) {
     // with healthful zeros, and then create an input
     // deserializer.
     memset(m_parameter_buffer.get(), 0, 4 * 1024);
-    voltdb::ReferenceSerializeInputBE emptyParams(m_parameter_buffer.get(), 4 * 1024);
+    ReferenceSerializeInputBE emptyParams(m_parameter_buffer.get(), 4 * 1024);
 
     //
     // Execute the plan.  You'd think this would be more
@@ -565,13 +565,13 @@ TEST_F(ExecutionEngineTest, Execute_PlanFragmentInfo) {
         dumpResultTable(m_result_buffer.get(), result_size);
     }
 
-    boost::scoped_ptr<voltdb::TempTable> result(voltdb::loadTableFrom(m_result_buffer.get(), result_size));
+    boost::scoped_ptr<TempTable> result(loadTableFrom(m_result_buffer.get(), result_size));
     assert(result.get() != NULL);
     ASSERT_TRUE(result != NULL);
 
-    const voltdb::TupleSchema* res_schema = result->schema();
-    voltdb::TableTuple tuple(res_schema);
-    voltdb::TableIterator iter = result->iterator();
+    const TupleSchema* res_schema = result->schema();
+    TableTuple tuple(res_schema);
+    TableIterator iter = result->iterator();
     if (!iter.hasNext()) {
         printf("No results!!\n");
     }
@@ -582,8 +582,8 @@ TEST_F(ExecutionEngineTest, Execute_PlanFragmentInfo) {
          * and the test.  The query selects two values, both
          * integral, and the second is twice the first.
          */
-        int64_t v0 = voltdb::ValuePeeker::peekAsBigInt(tuple.getNValue(0));
-        int64_t v1 = voltdb::ValuePeeker::peekAsBigInt(tuple.getNValue(1));
+        int64_t v0 = ValuePeeker::peekAsBigInt(tuple.getNValue(0));
+        int64_t v1 = ValuePeeker::peekAsBigInt(tuple.getNValue(1));
         ASSERT_TRUE(2*v0 == v1);
     }
     if (debug_dump) {
