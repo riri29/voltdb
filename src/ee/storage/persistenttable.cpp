@@ -117,9 +117,18 @@ PersistentTable::PersistentTable(int partitionColumn,
     }
 }
 
-void PersistentTable::initializeWithColumns(TupleSchema* schema,
-                                            std::vector<std::string> const& columnNames,
-                                            bool ownsTupleSchema) {
+void* PersistentTable::allocatorCopier(void*__restrict__ dst, void const*__restrict__ src) const {
+    checkContext("Copying");
+    TableTuple srcTuple(m_schema), dstTuple(m_schema);
+    srcTuple.move(const_cast<void*>(src));
+    dstTuple.move(dst);
+    dstTuple.resetHeader();
+    dstTuple.copyForPersistentInsert(srcTuple);
+    return dst;
+}
+
+void PersistentTable::initializeWithColumns(
+        TupleSchema const* schema, std::vector<std::string> const& columnNames, bool ownsTupleSchema) {
     vassert(schema != nullptr);
 
     Table::initializeWithColumns(schema, columnNames, ownsTupleSchema);
@@ -137,16 +146,8 @@ void PersistentTable::initializeWithColumns(TupleSchema* schema,
                 decreaseStringMemCount(tuple.getNonInlinedMemorySizeForPersistentTable());
                 tuple.freeObjectColumns();
             },
-            [this] (void* fresh, void const* dest) {       // copier
-                checkContext("Copying");
-                TableTuple freshCopy(m_schema);
-                freshCopy.move(fresh);
-                TableTuple source(m_schema);
-                source.move(const_cast<void*>(dest));
-                freshCopy.resetHeader();
-                freshCopy.copyForPersistentInsert(source);
-                return fresh;
-            }}});
+            bind(&PersistentTable::allocatorCopier, this,
+                    std::placeholders::_1, std::placeholders::_2)}});
     } else {
         m_dataStorage.reset(new Alloc{tupleSize});
     }
@@ -194,7 +195,7 @@ PersistentTable::~PersistentTable() {
     }
 }
 
-void PersistentTable::checkContext(const char* operation) {
+void PersistentTable::checkContext(const char* operation) const {
     if (isReplicatedTable() != SynchronizedThreadLock::isInMpEngineContext()) {
        std::stringstream message;
        message << operation << " tuples from table " << name().c_str() <<
@@ -656,7 +657,11 @@ void PersistentTable::compact(void* dst, void const* src, bool frozen) {
         decreaseStringMemCount(m_dstTuple.getNonInlinedMemorySizeForPersistentTable());
         m_dstTuple.freeObjectColumns();
     }
-    memcpy(m_dstTuple.address(), m_srcTuple.address(), m_tupleLength);
+    if (m_schema->getUninlinedObjectColumnCount() > 0) {         // Compactor deep copies
+        allocatorCopier(dst, src);
+    } else {
+        memcpy(dst, src, m_tupleLength);
+    }
     vassert(!m_srcTuple.isPendingDeleteOnUndoRelease());
 
     for_each(m_indexes.begin(), m_indexes.end(),
@@ -677,7 +682,7 @@ void PersistentTable::compact(void* dst, void const* src, bool frozen) {
 
 void PersistentTable::finalizeRelease() {
     allocator().template remove_force<storage::truth>(
-            [this] (vector<pair<void*, void const*>> const& tuples) {    // shallow copy when frozen
+            [this] (vector<pair<void*, void const*>> const& tuples) {    // deep copy when frozen
         for_each(tuples.cbegin(), tuples.cend(),
                 [this, frozen = allocator().frozen()] (pair<void*, void const*> const& tuple) {
                     compact(tuple.first, tuple.second, frozen);

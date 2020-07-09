@@ -15,8 +15,7 @@
  * along with VoltDB.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef TUPLESCHEMA_H_
-#define TUPLESCHEMA_H_
+#pragma once
 
 #include <common/debuglog.h>
 #include <cstring>
@@ -145,7 +144,7 @@ public:
                                           const std::vector<uint16_t>& secondSet);
 
     /** Static factory method to destroy a TupleSchema object. Set to null after this call */
-    static void freeTupleSchema(TupleSchema *schema);
+    static void freeTupleSchema(TupleSchema const*schema);
 
     /** Return the number of (visible) columns in the schema for the tuple. */
     inline uint16_t columnCount() const;
@@ -416,4 +415,3 @@ inline void TupleSchema::setUninlinedObjectColumnInfoIndex(uint16_t objectColumn
 }
 } // namespace voltdb
 
-#endif // TUPLESCHEMA_H_

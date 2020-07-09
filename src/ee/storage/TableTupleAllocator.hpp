@@ -584,15 +584,15 @@ namespace voltdb {
         class FinalizerAndCopier {
             bool const m_complicated = false;
             function<void(void const*)> const m_finalize{};
-            function<void*(void*, void const*)> const m_copy{};
+            function<void*(void*__restrict__, void const*__restrict__)> const m_copy{};
         public:
             FinalizerAndCopier() noexcept = default;
             FinalizerAndCopier(FinalizerAndCopier const&) = default;
             FinalizerAndCopier(function<void(void const*)> const&,
-                    function<void*(void*, void const*)> const&) noexcept;
+                    function<void*(void*__restrict__, void const*__restrict__)> const&) noexcept;
             operator bool() const noexcept;
             void finalize(void const*) const;
-            void* copy(void*, void const*) const;
+            void* copy(void*__restrict__, void const*__restrict__) const;
         };
 
         /**
@@ -745,7 +745,7 @@ namespace voltdb {
              * State changes
              */
             void freeze();
-            void thaw();          // when to apply finalizer
+            void thaw();
             /**
              * Auxillary others
              */
@@ -795,9 +795,11 @@ namespace voltdb {
             typename = typename enable_if<is_chunks<Alloc>::value && is_base_of<BaseHistoryRetainTrait, Trait>::value>::type>
         class TxnPreHook : private Trait {
             using map_type = typename Collections<collections_type>::template map<void const*, void const*>;
+            using set_type = typename Collections<collections_type>::template set<void const*>;
             static FinalizerAndCopier const EMPTY_FINALIZER;
             bool m_recording = false;            // in snapshot process?
             map_type m_changes{};                // addr in persistent storage under change => addr storing before-change content
+            set_type m_updates{};                // a subset of keys of m_changes due to updates (whose values in m_changes need to be finalized)
             Alloc m_changeStore;
             FinalizerAndCopier const& m_finalizerAndCopier;
         public:

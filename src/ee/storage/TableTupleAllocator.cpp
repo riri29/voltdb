@@ -589,16 +589,49 @@ inline void CompactingStorageTrait::thaw() {
             auto const& beginTxn = storage.beginTxn();
             bool const empty = beginTxn.empty();
             auto const stop = empty ? 0 : beginTxn.iterator()->id();
-            // NOTE: we **never** finalize a TXN chunk (that is
-            // only visible to snapshot), since they had been
-            // either:
-            // 1. removed without compaction at which time it is
-            // finalized; or
-            // 2. moved due to compaction, whence the move does
-            // *not* deep copy (see `remove_force()')
-            while (! m_storage.empty() && (empty || less_rolling(m_storage.front().id(), stop))) {
-                assert(storage.begin()->range_left() == storage.begin()->range_right());
-                storage.pop_front();
+            if (storage.finalizerAndCopier()) { // Finalize all TXN chunk (that is only visible to snapshot);
+                bool const hasFrozenBoundaries = static_cast<bool>(storage.frozenBoundaries());
+                auto const boundaries = hasFrozenBoundaries ?
+                    make_pair(storage.frozenBoundaries()->left(), storage.frozenBoundaries()->right()) :
+                    make_pair(position_type{} , position_type{});
+                id_type id = m_storage.front().id();
+                position_type const* boundary;
+                while (! m_storage.empty() && (empty || less_rolling(id, stop))) {
+                    // without active frozen boundary, the head chunk must be visible to txn
+                    assert(hasFrozenBoundaries &&
+                            m_storage.front().range_left() == m_storage.front().range_right());
+                    if (nullptr != (boundary = id == boundaries.first.id() ?    // on either left or right frozen chunk
+                                &boundaries.first : (id == boundaries.second.id() ? &boundaries.second : nullptr))) {
+                        storage.pop_finalize(boundary->left(), boundary->right());
+                        id = m_storage.front().id();
+                    } else {                       // whole chunk finalizable
+                        auto const& chunk = m_storage.front();
+                        storage.pop_finalize(chunk.range_begin(), chunk.range_end());
+                        id = m_storage.front().id();
+                    }
+                }
+                if (! m_storage.empty()) {         // and also the last partially finalizable chunk that happens to be on
+                    id = m_storage.front().id();
+                    vassert(id == beginTxn.iterator()->id());
+                    boundary = id == boundaries.first.id() ?
+                        &boundaries.first : (id == boundaries.second.id() ? &boundaries.second : nullptr);
+                    char const
+                        *const stop = reinterpret_cast<char const*>(beginTxn.iterator()->range_left()),
+                        *cur = boundary != nullptr ?     // the boundary of frozen region;
+                            reinterpret_cast<char const*>(boundary->left()) :
+                            (less_rolling(id, boundaries.second.id()) ?       // or the boundary of TXN, short of frozen right boundary
+                             reinterpret_cast<char const*>(beginTxn.iterator()->range_begin()) :
+                             stop);
+                    while (cur < stop) {
+                        storage.finalizerAndCopier().finalize(cur);
+                        cur += storage.tupleSize();
+                    }
+                }
+            } else {                       // No finalization needed
+                while (! m_storage.empty() && (empty || less_rolling(m_storage.front().id(), stop))) {
+                    assert(storage.begin()->range_left() == storage.begin()->range_right());
+                    storage.pop_front();
+                }
             }
         }
         m_frozen = false;
@@ -670,7 +703,7 @@ inline void FinalizerAndCopier::finalize(void const* p) const {
     m_finalize(p);
 }
 
-inline void* FinalizerAndCopier::copy(void* dst, void const* src) const {
+inline void* FinalizerAndCopier::copy(void*__restrict__ dst, void const*__restrict__ src) const {
     assert(m_complicated);
     return m_copy(dst, src);
 }
@@ -843,8 +876,7 @@ inline void CompactingChunks::clear(Remove_cb const& cb) {
         fold<IterableTableTupleChunks<CompactingChunks, truth>::const_iterator>(
                 static_cast<CompactingChunks const&>(*this),
                 [&cb] (void const* p) noexcept {cb(p);});
-        if (frozen()) {
-            assert(frozenBoundaries());
+        if (frozenBoundaries()) {
             if (m_finalizerAndCopier) {              // finalize the region between frozen right, and txn end
                 auto const& frozenRight = frozenBoundaries()->right();
                 if (less<position_type>()(frozenRight, *last())) {
@@ -2017,21 +2049,34 @@ TxnPreHook<Alloc, Trait, E>::TxnPreHook(size_t tupleSize, FinalizerAndCopier con
             }),
     m_changeStore(tupleSize), m_finalizerAndCopier(cb) {}
 
+/**
+ * Hook memory makes deep copy for original content of updated
+ * address.
+ */
 template<typename Alloc, typename Trait, typename E1>
 template<typename IteratorObserver, typename E2> inline void TxnPreHook<Alloc, Trait, E1>::addForUpdate(
         void const* dst, IteratorObserver& obs) {
     if (m_recording && ! obs(dst)) {
         auto const iter = m_changes.lower_bound(dst);
-        if (iter == m_changes.cend() || iter->first != dst) {   // create a fresh copy
-            void* fresh = m_changeStore.allocate();
-            m_changes.emplace_hint(iter, dst,
-                    m_finalizerAndCopier ?        // deep copy for updates only
-                    m_finalizerAndCopier.copy(fresh, dst) :            // deep copy, or
-                    memcpy(fresh, dst, m_changeStore.tupleSize()));    // shallow copy
+        if (iter == m_changes.cend() || iter->first != dst) {
+            void* fresh = m_changeStore.allocate();   // create a fresh copy
+            if (m_finalizerAndCopier) {
+                vassert(m_updates.find(dst) == m_updates.cend());
+                m_updates.emplace_hint(m_updates.cend(), dst);
+                m_changes.emplace_hint(iter, dst,
+                        m_finalizerAndCopier.copy(fresh, dst));
+            } else {
+                m_changes.emplace_hint(iter, dst,
+                        memcpy(fresh, dst, m_changeStore.tupleSize()));
+            }
         }
     }
 }
 
+/**
+ * Hook memory *never* deep copies the original content of
+ * deleted address.
+ */
 template<typename Alloc, typename Trait, typename E1>
 template<typename IteratorObserver, typename E2> inline void TxnPreHook<Alloc, Trait, E1>::addForDelete(
         void const* dst, IteratorObserver& obs) {
@@ -2055,11 +2100,18 @@ template<typename Alloc, typename Trait, typename E> inline void TxnPreHook<Allo
 
 template<typename Alloc, typename Trait, typename E> inline void TxnPreHook<Alloc, Trait, E>::thaw() {
     if (m_recording) {
+        vassert(m_finalizerAndCopier || m_updates.empty());
         if (m_finalizerAndCopier) {
-            for_each(m_changes.begin(), m_changes.end(),
-                    [this](typename map_type::value_type& p) { m_finalizerAndCopier.finalize(p.second); });
+            // Finalize on hook memory tracking updated addresses
+            for_each(m_updates.begin(), m_updates.end(),
+                    [this](void const* key) {                          // finalize on copied value (m_changes' value)
+                        auto const iter = m_changes.find(key);
+                        assert(iter != m_changes.cend());
+                        m_finalizerAndCopier.finalize(iter->second);
+                    });
         }
         m_changes.clear();
+        m_updates.clear();
         m_changeStore.clear();
         m_recording = false;
     } else {

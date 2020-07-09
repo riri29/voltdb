@@ -311,7 +311,7 @@ protected:
     Table(int tableAllocationTargetSize);
     void resetTable();
 
-    virtual void initializeWithColumns(TupleSchema* schema, std::vector<std::string> const& columnNames,
+    virtual void initializeWithColumns(TupleSchema const* schema, std::vector<std::string> const& columnNames,
           bool ownsTupleSchema);
     bool checkNulls(TableTuple const& tuple) const;
 
@@ -323,7 +323,7 @@ protected:
     TableTuple m_tempTuple{};
     boost::scoped_array<char> m_tempTupleMemory;
 
-    TupleSchema* m_schema = nullptr;
+    TupleSchema const* m_schema = nullptr;
 
     // CONSTRAINTS
     std::vector<bool> m_allowNulls;

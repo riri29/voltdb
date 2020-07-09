@@ -55,7 +55,7 @@ namespace voltdb {
  */
 class AbstractTempTable : public Table {
 public:
-    virtual void initializeWithColumns(TupleSchema* schema, std::vector<std::string> const& columnNames,
+    virtual void initializeWithColumns(TupleSchema const* schema, std::vector<std::string> const& columnNames,
             bool ownsTupleSchema) {
         Table::initializeWithColumns(schema, columnNames, ownsTupleSchema);
 #ifdef MEMCHECK

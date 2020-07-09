@@ -186,12 +186,12 @@ private:
     PersistentTable(PersistentTable const&);
     PersistentTable operator=(PersistentTable const&);
 
-    virtual void initializeWithColumns(TupleSchema* schema,
+    virtual void initializeWithColumns(TupleSchema const* schema,
             std::vector<std::string> const& columnNames,
             bool ownsTupleSchema);
     void rollbackIndexChanges(TableTuple* tuple, int upto);
     void compact(void* dst, void const* src, bool frozen);
-
+    void* allocatorCopier(void*__restrict__, void const*__restrict__) const;
 public:
     using Hook = storage::TxnPreHook<storage::NonCompactingChunks<storage::LazyNonCompactingChunk>,
                    storage::HistoryRetainTrait<storage::gc_policy::batched>>;
@@ -324,7 +324,7 @@ public:
 
     TableTuple createTuple(TableTuple const &source);
     void finalizeRelease();
-    void checkContext(const char* operation);
+    void checkContext(const char* operation) const;
     /*
      * Lookup the address of the tuple whose values are identical to the specified tuple.
      * Does a primary key lookup or table scan if necessary.

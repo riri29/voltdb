@@ -53,7 +53,7 @@
 
 namespace voltdb {
 Table* TableFactory::getPersistentTable(
-        voltdb::CatalogId databaseId, char const* name, TupleSchema* schema,
+        voltdb::CatalogId databaseId, char const* name, TupleSchema const* schema,
             const std::vector<std::string> &columnNames, char *signature, bool tableIsMaterialized,
             int partitionColumn, TableType tableType, int tableAllocationTargetSize,
             int tupleLimit, bool drEnabled, bool isReplicated) {
@@ -105,7 +105,7 @@ TableTupleFilter* TableFactory::getTableTupleFilter(Table* table) {
 }
 // This is a convenient wrapper for test only.
 StreamedTable* TableFactory::getStreamedTableForTest(
-            voltdb::CatalogId databaseId, const std::string &name, TupleSchema* schema,
+            voltdb::CatalogId databaseId, const std::string &name, TupleSchema const* schema,
             const std::vector<std::string> &columnNames, ExportTupleStream* wrapper,
             bool exportEnabled) {
     StreamedTable *table = StreamedTable::createForTest(wrapper);
@@ -118,7 +118,7 @@ StreamedTable* TableFactory::getStreamedTableForTest(
     return table;
 }
 
-TempTable* TableFactory::buildTempTable(const std::string &name, TupleSchema* schema,
+TempTable* TableFactory::buildTempTable(const std::string &name, TupleSchema const* schema,
         const std::vector<std::string> &columnNames, TempTableLimits const* limits) {
     TempTable* table = new TempTable();
     initCommon(0, table, name, schema, columnNames, true);
@@ -156,15 +156,15 @@ LargeTempTable* TableFactory::buildCopiedLargeTempTable( const std::string &name
     return newTable;
 }
 
-LargeTempTable* TableFactory::buildLargeTempTable(const std::string &name, TupleSchema* schema,
-        const std::vector<std::string> &columnNames) {
+LargeTempTable* TableFactory::buildLargeTempTable(const std::string &name,
+        TupleSchema const* schema, const std::vector<std::string> &columnNames) {
     LargeTempTable* table = new LargeTempTable();
     initCommon(0, table, name, schema, columnNames, true);
     return table;
 }
 
 void TableFactory::initCommon(voltdb::CatalogId databaseId, Table *table,
-        const std::string &name, TupleSchema *schema, const std::vector<std::string> &columnNames,
+        const std::string &name, TupleSchema const*schema, const std::vector<std::string> &columnNames,
         const bool ownsTupleSchema) {
     vassert(table != NULL);
     vassert(schema != NULL);
