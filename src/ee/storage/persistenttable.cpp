@@ -127,6 +127,14 @@ void* PersistentTable::allocatorCopier(void*__restrict__ dst, void const*__restr
     return dst;
 }
 
+inline void PersistentTable::allocatorFinalize(void const* p) {
+    checkContext("Cleaning");
+    TableTuple tuple(m_schema);
+    tuple.move(const_cast<void*>(p));
+    decreaseStringMemCount(tuple.getNonInlinedMemorySizeForPersistentTable());
+    tuple.freeObjectColumns();
+}
+
 void PersistentTable::initializeWithColumns(
         TupleSchema const* schema, std::vector<std::string> const& columnNames, bool ownsTupleSchema) {
     vassert(schema != nullptr);
@@ -139,15 +147,11 @@ void PersistentTable::initializeWithColumns(
     auto const tupleSize = schema->tupleLength() + TUPLE_HEADER_SIZE;
     if (m_schema->getUninlinedObjectColumnCount() > 0) {
         m_dataStorage.reset(new Alloc{tupleSize, {
-            [this] (void const* p) {      // finalizer
-                checkContext("Cleaning");
-                TableTuple tuple(m_schema);
-                tuple.move(const_cast<void*>(p));
-                decreaseStringMemCount(tuple.getNonInlinedMemorySizeForPersistentTable());
-                tuple.freeObjectColumns();
-            },
+            bind(&PersistentTable::allocatorFinalize, this,
+                    std::placeholders::_1),
             bind(&PersistentTable::allocatorCopier, this,
-                    std::placeholders::_1, std::placeholders::_2)}});
+                    std::placeholders::_1, std::placeholders::_2)
+            }});
     } else {
         m_dataStorage.reset(new Alloc{tupleSize});
     }
@@ -648,19 +652,39 @@ TableTuple PersistentTable::createTuple(TableTuple const &source){
     return target;
 }
 
-void PersistentTable::compact(void* dst, void const* src, bool frozen) {
+void PersistentTable::compact(void* dst, void const* src,
+       typename storage::CompactingChunks::compact_state state) {
+    // releasable arg is true when the table needs a finalizer,
+    // and is either: 1. not frozen; or 2. frozen, but src addr
+    // lies outside frozen region.
     m_dstTuple.move(dst);
     m_srcTuple.move(const_cast<void*>(src));
-
-    if (! frozen) {
-        // finalize dst tuple unless frozen, to save allocator from deep copy
-        decreaseStringMemCount(m_dstTuple.getNonInlinedMemorySizeForPersistentTable());
-        m_dstTuple.freeObjectColumns();
-    }
-    if (m_schema->getUninlinedObjectColumnCount() > 0) {         // Compactor deep copies
-        allocatorCopier(dst, src);
-    } else {
+    if (m_schema->getUninlinedObjectColumnCount() == 0 || ! allocator().frozen()) {
         memcpy(dst, src, m_tupleLength);
+    } else {           // NOTE: finalization of dst is handled by DelayedRemover::finalize()
+        switch (state) {
+            case storage::CompactingChunks::compact_state::src_frozen:
+                /**
+                 * Deep copy needed for compaction, but since
+                 * changes is not captured, dst is
+                 * finalizable/finalized.
+                 */
+                allocatorCopier(dst, src);
+                break;
+            case storage::CompactingChunks::compact_state::both_frozen:
+                if (allocator().changed(dst)) {
+                    // When deleted tuple already had changes
+                    // tracked before, mem copy suffice
+                    memcpy(dst, src, m_tupleLength);
+                } else {
+                    // Otherwise, deep copy needed for compaction. Cannot
+                    // finalize either address
+                    allocatorCopier(dst, src);
+                }
+                break;
+            case storage::CompactingChunks::compact_state::unfrozen:
+                memcpy(dst, src, m_tupleLength);
+        }
     }
     vassert(!m_srcTuple.isPendingDeleteOnUndoRelease());
 
@@ -675,17 +699,23 @@ void PersistentTable::compact(void* dst, void const* src, bool frozen) {
     if (m_tableStreamer != nullptr) {
         m_tableStreamer->notifyTupleMovement(m_srcTuple, m_dstTuple);
     }
-    if (! frozen) {                 // when frozen, the original tuple remains useful??
-        m_srcTuple.setActiveFalse();
-    }
+    m_srcTuple.setActiveFalse();           // snapshot ignores this flag??
 }
 
 void PersistentTable::finalizeRelease() {
     allocator().template remove_force<storage::truth>(
-            [this] (vector<pair<void*, void const*>> const& tuples) {    // deep copy when frozen
-        for_each(tuples.cbegin(), tuples.cend(),
-                [this, frozen = allocator().frozen()] (pair<void*, void const*> const& tuple) {
-                    compact(tuple.first, tuple.second, frozen);
+            [this] (vector<pair<void*, void const*>> const& tuples,
+                typename Alloc::remove_iterator_type iter1,
+                typename Alloc::remove_iterator_type iter2) {    // deep copy when frozen
+        using ct = storage::CompactingChunks::compact_state;
+        for_each(tuples.cbegin(), iter1, [this](pair<void*, void const*> const& m) {
+                    compact(m.first, m.second, ct::both_frozen);
+                });
+        for_each(iter1, iter2, [this](pair<void*, void const*> const& m) {
+                    compact(m.first, m.second, ct::src_frozen);
+                });
+        for_each(iter2, tuples.cend(), [this](pair<void*, void const*> const& m) {
+                    compact(m.first, m.second, ct::unfrozen);
                 });
     });
     m_invisibleTuplesPendingDeleteCount = 0;
@@ -1246,7 +1276,7 @@ void PersistentTable::deleteTuple(TableTuple& target, bool fallible, bool remove
     allocator().template remove<storage::truth>(
             target.address(),
             bind(&PersistentTable::compact, this,
-                target.address(), std::placeholders::_1, allocator().frozen()));
+                target.address(), std::placeholders::_1, std::placeholders::_2));
     m_invisibleTuplesPendingDeleteCount = 0;
 }
 

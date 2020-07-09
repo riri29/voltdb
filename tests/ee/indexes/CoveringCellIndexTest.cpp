@@ -501,6 +501,7 @@ TEST_F(CoveringCellIndexTest, Simple) {
 
     tempTuple.setNValue(PK_COL_INDEX, ValueFactory::getIntegerValue(2));
     tempTuple.setNValue(GEOG_COL_INDEX, NValue::getNullValue(ValueType::tGEOGRAPHY));
+    table->insertTuple(tempTuple);
 
     tempTuple.setNValue(PK_COL_INDEX, ValueFactory::getIntegerValue(3));
     tempTuple.setNValue(GEOG_COL_INDEX, polygonWktToNval("polygon((0 0, 5 0, 0 5, 0 0))"));
