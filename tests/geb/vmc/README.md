@@ -1,6 +1,9 @@
 Automated Tests of the VMC (VoltDB Management Center), Using GEB
 ================================================================
 
+# Not a real change: just a fake one for testing git/github stuff,
+# specifically ENG-19255, ENG-19247 & especially ENG-19809.
+
 This file describes the GEB automated tests of the VMC (VoltDB Management
 Center), which is the new web UI, replacing the old Web Studio. These automated
 tests are believed to provide more than the level of coverage of the old
