@@ -1461,6 +1461,8 @@ TEST_F(TableTupleAllocatorTest, TestSingleRemoveState) {
             remove_single(alloc, addresses[AllocsPerChunk / 2 + 2]));
 }
 
+// TODO: GCC-4.* generates internal errors: C7, U14, OSX10.6
+#if defined(__GNUC__) && (__GNUC__ > 5)
 TEST_F(TableTupleAllocatorTest, TestBatchRemoveState) {
     using namespace placeholders;
     using Gen = StringGen<TupleSize>;
@@ -1495,6 +1497,7 @@ TEST_F(TableTupleAllocatorTest, TestBatchRemoveState) {
         gen.reset();
     }
 }
+#endif
 
 TEST_F(TableTupleAllocatorTest, TestBatchRemoveBug) {
     using Gen = StringGen<TupleSize>;
