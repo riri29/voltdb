@@ -971,10 +971,8 @@ void PersistentTable::updateTupleWithSpecificIndexes(
                      *uq->getPool(), drStream, drMark, rowCostForDRRecord(DR_RECORD_UPDATE)));
         }
     }
-
-    if (m_tableStreamer != nullptr) {
-        m_tableStreamer->notifyTupleUpdate(targetTupleToUpdate);
-    }
+    bool const tgtFinalizable =
+        m_tableStreamer == nullptr || ! m_tableStreamer->notifyTupleUpdate(targetTupleToUpdate);
 
     /**
      * Remove the current tuple from any indexes.
@@ -1018,7 +1016,9 @@ void PersistentTable::updateTupleWithSpecificIndexes(
     }
 
     if (m_schema->getUninlinedObjectColumnCount() != 0) {
-        decreaseStringMemCount(targetTupleToUpdate.getNonInlinedMemorySizeForPersistentTable());
+        if (tgtFinalizable) {              // occasionally skips finalization (but must skip when needed)
+            decreaseStringMemCount(targetTupleToUpdate.getNonInlinedMemorySizeForPersistentTable());
+        }
         increaseStringMemCount(sourceTupleWithNewValues.getNonInlinedMemorySizeForPersistentTable());
     }
 

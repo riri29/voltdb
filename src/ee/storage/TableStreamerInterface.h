@@ -15,10 +15,8 @@
  * along with VoltDB.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef TABLE_STREAMER_INTERFACE_H
-#define TABLE_STREAMER_INTERFACE_H
+#pragma once
 
-#include <boost/shared_ptr.hpp>
 #include "common/HiddenColumnFilter.h"
 #include "common/types.h"
 #include "storage/TupleBlock.h"
@@ -70,7 +68,7 @@ class PersistentTableSurgeon;
         /**
          * Tuple update hook.
          */
-        virtual void notifyTupleUpdate(TableTuple &tuple) = 0;
+        virtual bool notifyTupleUpdate(TableTuple &tuple) = 0;
 
         /**
          * Tuple delete hook.
@@ -106,4 +104,3 @@ class PersistentTableSurgeon;
 
 } // namespace voltdb
 
-#endif // TABLE_STREAMER_INTERFACE_H

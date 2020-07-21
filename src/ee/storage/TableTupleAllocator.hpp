@@ -819,14 +819,12 @@ namespace voltdb {
         template<typename Alloc, typename Trait,
             typename = typename enable_if<is_chunks<Alloc>::value && is_base_of<BaseHistoryRetainTrait, Trait>::value>::type>
         class TxnPreHook : private Trait {
-            using map_type = typename Collections<collections_type>::template map<
-                void const*, void const*>;
-            using mmap_type = typename Collections<collections_type>::template map<
-                void const*, typename map_type::const_iterator>;
+            enum class change_type : char {deletes, update, deletes_update};
+            using map_type = typename Collections<collections_type>::template
+                map<void const*, pair<change_type, void const*>>;
             static FinalizerAndCopier const EMPTY_FINALIZER;
             bool m_recording = false;            // in snapshot process?
             map_type m_changes{};                // addr in persistent storage under change => addr storing before-change content
-            mmap_type m_updates{};               // a subset of keys of m_changes due to updates (whose values in m_changes need to be finalized)
             Alloc m_changeStore;
             FinalizerAndCopier const& m_finalizerAndCopier;
         public:
@@ -841,10 +839,14 @@ namespace voltdb {
             void thaw();
             // NOTE: the deletion event need to happen before
             // calling add(...), unlike insertion/update.
-            // \return whether finalize is called on the addr
+            // \return true when: finalizer is non-trivial,
+            // target addr is in frozen region, and had been tracked
+            // before as deleted; in which case it now become
+            // tracked as updated, and for this update instance,
+            // the addr before update **cannot** be finalized.
             template<typename IteratorObserver,
                 typename = typename enable_if<IteratorObserver::is_iterator_observer::value>::type>
-            void addForUpdate(void const*, IteratorObserver&);
+            bool addForUpdate(void const*, IteratorObserver&);
             template<typename IteratorObserver,
                 typename = typename enable_if<IteratorObserver::is_iterator_observer::value>::type>
             void addForDelete(void const*, IteratorObserver&);
@@ -875,14 +877,34 @@ namespace voltdb {
             using Hook::release;                   // reminds to client: this must be called for GC to happen (instead of delaying it to thaw())
             HookedCompactingChunks(size_t) noexcept;
             HookedCompactingChunks(size_t, FinalizerAndCopier const&) noexcept;
+            /**
+             * It is important that the return value of
+             * `freeze()' be kept around, since its weak ptr
+             * m_iterator_observer, decides whether a change
+             * needs to be tracked. Not doing so will result in
+             * unnecessary memory consumption.
+             */
             template<typename Tag>
             shared_ptr<typename IterableTableTupleChunks<HookedCompactingChunks<Hook, E>, Tag, void>::hooked_iterator>
             freeze();
             template<typename Tag> void thaw();    // switch of snapshot process
             void* allocate();                      // NOTE: now that client in control of when to fill in, be cautious not to overflow!!
-            // NOTE: these methods with Tag template must be
-            // supplied with same type as freeze() method.
-            template<typename Tag> void update(void*); // NOTE: this must be called prior to any memcpy operations happen
+            /**
+             * these methods with Tag template must be
+             * supplied with same type as freeze() method.
+             * \return see Hook::addForUpdate
+             * NOTE: must be called prior to any memcpy/deep copy operations from caller
+             */
+            template<typename Tag> bool update(void*);
+            /**
+             * Light weight free() operation at arbitrary
+             * position
+             * callback arg: compacted addr (that gets moved over
+             * to overwrite), and indicator for whether finalizer
+             * need to be called on the compacted addr.
+             */
+            template<typename Tag> bool
+            remove(void const*, function<void(void const*, compact_state)> const&&);
             /**
              * Light weight free() operations from either end,
              * involving no compaction. Removing from head when
@@ -894,15 +916,6 @@ namespace voltdb {
              * result in uncleaned removal (i.e. part of remove calls are lost).
              */
             void remove(remove_direction, void const*);
-            /**
-             * Light weight free() operation at arbitrary
-             * position
-             * callback arg: compacted addr (that gets moved over
-             * to overwrite), and indicator for whether finalizer
-             * need to be called on the compacted addr.
-             */
-            template<typename Tag> bool
-            remove(void const*, function<void(void const*, compact_state)> const&&);
             /**
              * Batch removal using separate calls
              */

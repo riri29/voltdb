@@ -14,8 +14,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with VoltDB.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef COPYONWRITECONTEXT_H_
-#define COPYONWRITECONTEXT_H_
+#pragma once
 
 #include <string>
 #include <vector>
@@ -61,7 +60,7 @@ public:
     /**
      * Optional tuple update handler.
      */
-    virtual void notifyTupleUpdate(TableTuple &tuple);
+    virtual bool notifyTupleUpdate(TableTuple &tuple);
 
     virtual int64_t getRemainingCount();
 
@@ -95,4 +94,3 @@ private:
 
 }
 
-#endif /* COPYONWRITECONTEXT_H_ */

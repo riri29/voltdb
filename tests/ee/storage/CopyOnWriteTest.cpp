@@ -904,17 +904,17 @@ public:
 
     voltdb::ElasticContext *getElasticContext() {
         voltdb::TableStreamer *streamer = dynamic_cast<voltdb::TableStreamer*>(m_table->m_tableStreamer.get());
-        if (streamer != NULL) {
-            BOOST_FOREACH(voltdb::TableStreamer::StreamPtr &streamPtr, streamer->m_streams) {
+        if (streamer != nullptr) {
+            for (auto& streamPtr : streamer->m_streams) {
                 if (streamPtr->m_streamType == TABLE_STREAM_ELASTIC_INDEX) {
                     voltdb::ElasticContext *context = dynamic_cast<ElasticContext*>(streamPtr->m_context.get());
-                    if (context != NULL) {
+                    if (context != nullptr) {
                         return context;
                     }
                 }
             }
         }
-        return NULL;
+        return nullptr;
     }
 
     voltdb::ElasticIndex *getElasticIndex() {
@@ -923,11 +923,12 @@ public:
 
     bool setElasticIndexTuplesPerCall(size_t nTuplesPerCall) {
         voltdb::ElasticContext *context = getElasticContext();
-        if (context != NULL) {
+        if (context != nullptr) {
             context->setTuplesPerCall(nTuplesPerCall);
             return true;
+        } else {
+            return false;
         }
-        return false;
     }
 
     void streamElasticIndex(std::vector<std::string> &predicateStrings, bool checkCalls) {
@@ -1531,7 +1532,7 @@ public:
 
     virtual bool notifyTupleInsert(TableTuple &tuple) { return false; }
 
-    virtual void notifyTupleUpdate(TableTuple &tuple) { }
+    virtual bool notifyTupleUpdate(TableTuple &tuple) { return false; }
 
     virtual void notifyTupleDelete(TableTuple &tuple) { }
 
@@ -1540,7 +1541,7 @@ public:
     }
 
     virtual TableStreamerInterface* cloneForTruncatedTable(voltdb::PersistentTableSurgeon&) {
-        return NULL;
+        return nullptr;
     }
 
 
@@ -1562,9 +1563,7 @@ public:
         m_freqInsert(freqInsert),
         m_freqDelete(freqDelete),
         m_freqUpdate(freqUpdate),
-        m_freqCompaction(freqCompaction),
-        m_icycle(0)
-    {}
+        m_freqCompaction(freqCompaction) {}
 
     void initialize() {
         m_test.initTable(m_npartitions, static_cast<int>(m_test.m_tupleWidth * (m_tuplesPerBlock + sizeof(int32_t))));
@@ -1611,7 +1610,7 @@ public:
     int m_freqDelete;
     int m_freqUpdate;
     int m_freqCompaction;
-    int m_icycle;
+    int m_icycle = 0;
 };
 
 
@@ -1646,8 +1645,8 @@ public:
         return m_context->notifyTupleInsert(tuple);
     }
 
-    virtual void notifyTupleUpdate(TableTuple &tuple) {
-        m_context->notifyTupleUpdate(tuple);
+    virtual bool notifyTupleUpdate(TableTuple &tuple) {
+        return m_context->notifyTupleUpdate(tuple);
     }
 
     virtual void notifyTupleDelete(TableTuple &tuple) {

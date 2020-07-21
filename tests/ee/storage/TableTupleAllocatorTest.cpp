@@ -440,26 +440,6 @@ TEST_F(TableTupleAllocatorTest, TestIteratorOfNonCompactingChunks) {
     testIteratorOfNonCompactingChunks<NonCompactingChunks<LazyNonCompactingChunk>>();
 }
 
-template<typename Alloc, typename Compactible = typename Alloc::Compact> struct TrackedDeleter {
-    Alloc& m_alloc;
-    bool& m_freed;
-    TrackedDeleter(Alloc& alloc, bool& freed) : m_alloc(alloc), m_freed(freed) {}
-    void operator()(void* p) {
-        m_freed |= m_alloc.free(p) != nullptr;
-    }
-};
-// non-compacting chunks' free() is void. Not getting tested, see
-// comments at caller.
-template<typename Alloc> struct TrackedDeleter<Alloc, false_type> {
-    Alloc& m_alloc;
-    bool& m_freed;
-    TrackedDeleter(Alloc& alloc, bool& freed) : m_alloc(alloc), m_freed(freed) {}
-    void operator()(void* p) {
-        m_freed = true;
-        m_alloc.free(p);
-    }
-};
-
 template<typename Tag>
 class MaskedStringGen : public StringGen<TupleSize> {
     using super = StringGen<TupleSize>;
@@ -1424,8 +1404,92 @@ TEST_F(TableTupleAllocatorTest, TestClearReallocate) {
     ASSERT_EQ(1, i);
 }
 
+#define A_Unused __attribute__((unused))
+using namespace placeholders;
+TEST_F(TableTupleAllocatorTest, testHookedCompactingChunksUpdateRetValue) {
+    Alloc alloc_f(TupleSize, FinalizerAndCopier{
+                [](void const*)noexcept{},
+                bind(memcpy, _1, _2, TupleSize)
+            }),
+          alloc_s(TupleSize);
+    StringGen<TupleSize> gen;
+    varray<AllocsPerChunk> addresses_f, addresses_s;
+    size_t i = 0;
+    for (; i < AllocsPerChunk / 2; ++i) {
+        addresses_f[i] = memcpy(alloc_f.allocate(), gen.get(), TupleSize);
+    }
+    A_Unused auto const& iterp = alloc_f.template freeze<truth>();
+    for (; i < AllocsPerChunk; ++i) {
+        addresses_f[i] = memcpy(alloc_f.allocate(), gen.get(), TupleSize);
+    }
+    gen.reset();
+    for (i = 0; i < AllocsPerChunk; ++i) {
+        addresses_s[i] = memcpy(alloc_s.allocate(), gen.get(), TupleSize);
+    }
+    // update outside frozen region, or on non-finalizable
+    // allocator, always returns false
+    ASSERT_FALSE(alloc_f.template update<truth>(const_cast<void*>(
+                    addresses_f[AllocsPerChunk - 1])));
+    memcpy(const_cast<void*>(addresses_f[AllocsPerChunk - 1]),
+            gen.get(), TupleSize);
+    ASSERT_FALSE(alloc_s.template update<truth>(const_cast<void*>(
+                    addresses_s[AllocsPerChunk - 1])));
+    memcpy(const_cast<void*>(addresses_f[AllocsPerChunk - 1]),
+            gen.get(), TupleSize);
+    // fresh update inside frozen region => false, no matter how
+    // many times it's been called on that addr
+    for (i = 0; i < 16; ++i) {
+        ASSERT_FALSE(alloc_f.template update<truth>(const_cast<void*>(
+                        addresses_f[3])));
+        memcpy(const_cast<void*>(addresses_f[3]), gen.get(), TupleSize);
+    }
+    i = 2;
+    // When updating a delete-tracked addr, it returns true for
+    // the first update only,
+    ASSERT_EQ(make_pair(true, Alloc::compact_state::both_frozen),
+            remove_single(alloc_f, addresses_f[i]));
+    ASSERT_TRUE(alloc_f.template update<truth>(const_cast<void*>(addresses_f[i])));
+    memcpy(const_cast<void*>(addresses_f[i]), gen.get(), TupleSize);
+    // on successive updates, it always returns false,
+    ASSERT_FALSE(alloc_f.template update<truth>(const_cast<void*>(addresses_f[i])));
+    // and it doesn't matter how many deletes (>= 1) had occurred
+    // on that addr
+    i = AllocsPerChunk / 4;
+    for (auto j = 0lu; j < i - 2; ++j) {
+        ASSERT_EQ(make_pair(true, Alloc::compact_state::both_frozen),
+                remove_single(alloc_f, addresses_f[i]));
+    }
+    ASSERT_TRUE(alloc_f.template update<truth>(const_cast<void*>(addresses_f[i])));
+    memcpy(const_cast<void*>(addresses_f[i]), gen.get(), TupleSize);
+    ASSERT_FALSE(alloc_f.template update<truth>(const_cast<void*>(addresses_f[i])));
+    // Not so if delete/update occurs outside frozen region,
+    i = AllocsPerChunk / 2 + 1;
+    ASSERT_EQ(make_pair(true, Alloc::compact_state::src_frozen),
+            remove_single(alloc_f, addresses_f[i]));
+    ASSERT_FALSE(alloc_f.template update<truth>(const_cast<void*>(addresses_f[i])));
+    // or if not frozen (after thaw()-ed), when the addr had
+    // experienced several deletes...
+    void const* addr_5th;
+    i = 0;
+    until<typename IterableTableTupleChunks<Alloc, truth>::const_iterator>(
+            static_cast<Alloc const&>(alloc_f),
+            [&i, &addr_5th](void const* p) noexcept {
+                if (++i == 5) {
+                    addr_5th = p;
+                    return true;
+                } else {
+                    return false;
+                }
+            });
+    alloc_f.template thaw<truth>();
+    for (i = 0; i < 4; ++i) {
+        ASSERT_EQ(make_pair(true, Alloc::compact_state::unfrozen),
+                remove_single(alloc_f, addr_5th));
+    }
+    ASSERT_FALSE(alloc_f.template update<truth>(const_cast<void*>(addr_5th)));
+}
+
 TEST_F(TableTupleAllocatorTest, TestSingleRemoveState) {
-    using namespace placeholders;
     using Gen = StringGen<TupleSize>;
     Alloc alloc(TupleSize, FinalizerAndCopier{
                 [](void const*)noexcept{},
@@ -1437,7 +1501,7 @@ TEST_F(TableTupleAllocatorTest, TestSingleRemoveState) {
     for (i = 0; i < AllocsPerChunk / 2; ++i) {
         addresses[i] = memcpy(alloc.allocate(), gen.get(), TupleSize);
     }
-    alloc.template freeze<truth>();
+    A_Unused auto const& iterp = alloc.template freeze<truth>();
     for (; i < AllocsPerChunk; ++i) {
         addresses[i] = memcpy(alloc.allocate(), gen.get(), TupleSize);
     }
@@ -1464,7 +1528,6 @@ TEST_F(TableTupleAllocatorTest, TestSingleRemoveState) {
 // TODO: GCC-4.* generates internal errors: C7, U14, OSX10.6
 #if defined(__GNUC__) && (__GNUC__ > 5)
 TEST_F(TableTupleAllocatorTest, TestBatchRemoveState) {
-    using namespace placeholders;
     using Gen = StringGen<TupleSize>;
     Gen gen;
     varray<AllocsPerChunk * 2> addresses;
@@ -1477,7 +1540,7 @@ TEST_F(TableTupleAllocatorTest, TestBatchRemoveState) {
         for (i = 0; i < AllocsPerChunk - 1; ++i) {
             addresses[i] = memcpy(alloc.allocate(), gen.get(), TupleSize);
         }
-        alloc.template freeze<truth>();
+        auto const& iterp = alloc.template freeze<truth>();
         for (; i < AllocsPerChunk * 2; ++i) {
             addresses[i] = memcpy(alloc.allocate(), gen.get(), TupleSize);
         }
@@ -1736,7 +1799,7 @@ TEST_F(TableTupleAllocatorTest, TestClearFrozenCompactingChunks) {
     for (i = 0; i < NumTuples - 6; ++i) {                                              // last chunk not full
         memcpy(alloc.allocate(), gen.get(), TupleSize);
     }
-    alloc.template freeze<truth>();
+    A_Unused auto const& iterp = alloc.template freeze<truth>();
     alloc.template clear<truth>();
     ASSERT_TRUE(alloc.empty());
     fold<typename IterableTableTupleChunks<Alloc, truth>::const_iterator>(
@@ -1981,7 +2044,7 @@ TEST_F(TableTupleAllocatorTest, TestFinalizer_FrozenRemovals) {
         for (i = 0; i < NumTuples; ++i) {
             addresses[i] = gen.fill(alloc.allocate());
         }
-        alloc.template freeze<truth>();
+        A_Unused auto const& iterp = alloc.template freeze<truth>();
         alloc.remove_reserve(NumTuples / 2);
         for (i = 0; i < NumTuples; i += 2) {
             alloc.remove_add(const_cast<void*>(addresses[i]));
@@ -2016,7 +2079,7 @@ TEST_F(TableTupleAllocatorTest, TestFinalizer_AllocAndUpdates) {
         for (i = 0; i < NumTuples; ++i) {
             addresses[i] = gen.fill(alloc.allocate());
         }
-        alloc.template freeze<truth>();
+        A_Unused auto const& iterp = alloc.template freeze<truth>();
         // update with newest states
         for (i = 0; i < NumTuples; i += 2) {
             alloc.template update<truth>(const_cast<void*>(addresses[i]));
@@ -2188,7 +2251,7 @@ TEST_F(TableTupleAllocatorTest, TestFinalizer_bug1) {
         for (i = 0; i < NumTuples; ++i) {
             addresses[i] = gen.fill(alloc.allocate());
         }
-        alloc.template freeze<truth>();
+        A_Unused auto const& iterp = alloc.template freeze<truth>();
         auto const batch_size = NumTuples / 2 + 4;
         ASSERT_EQ(make_pair(batch_size, 0lu),   // removed subset is twice the # exceeding half
                 remove_multiple(alloc, addresses.crbegin(), next(addresses.crbegin(), batch_size)));

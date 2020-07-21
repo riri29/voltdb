@@ -15,13 +15,11 @@
  * along with VoltDB.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef TABLE_STREAMER_CONTEXT_H
-#define TABLE_STREAMER_CONTEXT_H
+#pragma once
 
 #include <vector>
 #include <string>
 #include <iostream>
-#include <boost/shared_ptr.hpp>
 #include "common/StreamPredicateList.h"
 #include "common/FatalException.hpp"
 #include "storage/TupleBlock.h"
@@ -96,7 +94,7 @@ public:
     /**
      * Optional tuple update handler.
      */
-    virtual void notifyTupleUpdate(TableTuple &tuple) { }
+    virtual bool notifyTupleUpdate(TableTuple &tuple) { return false; }
 
     /**
      * Optional tuple delete handler.
@@ -173,8 +171,7 @@ protected:
     /**
      * Predicate delete flags accessor.
      */
-    std::vector<bool> &getPredicateDeleteFlags()
-    {
+    std::vector<bool> &getPredicateDeleteFlags() {
         return m_predicateDeleteFlags;
     }
 
@@ -208,8 +205,7 @@ private:
     const int32_t m_partitionId;
 };
 
-typedef boost::shared_ptr<TableStreamerContext> TableStreamerContextPtr;
+using TableStreamerContextPtr = std::shared_ptr<TableStreamerContext>;
 
 } // namespace voltdb
 
-#endif // TABLE_STREAMER_CONTEXT_H

@@ -17,7 +17,6 @@
 
 #include <map>
 #include <boost/foreach.hpp>
-#include <boost/shared_ptr.hpp>
 #include "common/serializeio.h"
 #include "storage/persistenttable.h"
 #include "storage/CopyOnWriteContext.h"
@@ -32,7 +31,7 @@ namespace voltdb {
 typedef std::pair<CatalogId, Table*> TIDPair;
 
 TableStreamer::Stream::Stream(TableStreamType streamType,
-                              boost::shared_ptr<TableStreamerContext> context) :
+        std::shared_ptr<TableStreamerContext> context) :
     m_streamType(streamType),
     m_context(context) {}
 
@@ -51,11 +50,11 @@ TableStreamerInterface* TableStreamer::cloneForTruncatedTable(PersistentTableSur
     surgeon.initTableStreamer(the_clone);
     BOOST_FOREACH(StreamPtr &streamPtr, m_streams) {
         vassert(streamPtr != NULL);
-        boost::shared_ptr<TableStreamerContext> cloned_context;
+        std::shared_ptr<TableStreamerContext> cloned_context;
         cloned_context.reset(streamPtr->m_context->cloneForTruncatedTable(surgeon));
         if (cloned_context != NULL) {
             the_clone->m_streams.push_back(StreamPtr(new Stream(streamPtr->m_streamType,
-                                                                cloned_context)));
+                            cloned_context)));
         }
     }
     return the_clone;
@@ -87,7 +86,7 @@ bool TableStreamer::activateStream(PersistentTableSurgeon &surgeon, TableStreamT
     // Create an appropriate streaming context based on the stream type.
     if (!found && !failed) {
         try {
-            boost::shared_ptr<TableStreamerContext> context;
+            std::shared_ptr<TableStreamerContext> context;
             switch (streamType) {
                 case TABLE_STREAM_SNAPSHOT:
                     // Constructor can throw exception when it parses the predicates.
