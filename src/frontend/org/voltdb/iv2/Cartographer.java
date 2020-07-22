@@ -93,6 +93,7 @@ public class Cartographer extends StatsSource
     //partition masters by host
     private final Map<Integer, Set<Long>> m_currentMastersByHost = Maps.newTreeMap();
 
+    private ImmutableMap<Integer, LeaderCallBackInfo> m_partitionLeaderDetails = ImmutableMap.of();
     private final ExecutorService m_es
             = CoreUtils.getCachedSingleThreadExecutor("Cartographer", 15000);
 
@@ -212,7 +213,7 @@ public class Cartographer extends StatsSource
                     // these are newly promoted SPIs
                     newMasters.add(newMasterInfo);
                     // send the messages indicating promotion from here for each new master
-                    sendLeaderChangeNotify(hsid, partitionId, newMasterInfo.m_isMigratePartitionLeaderRequested);
+                    sendLeaderChangeNotify(hsid, partitionId, newMasterInfo.isMigrateRequested());
                 }
             }
 
@@ -233,6 +234,7 @@ public class Cartographer extends StatsSource
             m_currentSPMasters.addAll(newHSIDs);
             m_currentMastersByHost.clear();
             m_currentMastersByHost.putAll(newMastersByHost);
+            m_partitionLeaderDetails = ImmutableMap.copyOf(cache);
         }
     };
 
@@ -1068,6 +1070,35 @@ public class Cartographer extends StatsSource
             }
         }
         return false;
+    }
+
+    // When the last partition leader on a host is migrated away and there is an MP transaction which depends on
+    // the partition leader, the transaction can be deadlocked if the host is shutdown. Since the host does not have
+    // any partition leaders, its shutdown won't trigger transaction repair process to beak up the dependency.
+    // Here in a hacked way, update the partition master node on ZooKeeper without changing master assignment to trigger
+    // ZooKeeper callback and let the babysitter thread go through the repair process, break any dependencies on failed hosts
+    // for rerouted transactions.
+    public void poisonTransactions() {
+        for (Map.Entry<Integer, LeaderCallBackInfo> info : m_partitionLeaderDetails.entrySet()) {
+            if (info.getValue().isMigrateRequested()) {
+                final int pid = info.getKey();
+                final long hsid = info.getValue().m_HSId;
+                LeaderCacheWriter iv2masters = new LeaderCache(m_zk, "SpInitiator-iv2masters-" + pid,
+                        VoltZK.iv2masters);
+                String hsidStr =  Long.toString(Long.MAX_VALUE) + "/" + Long.toString(hsid);
+                if (info.getValue().isCallbackTrigger()) {
+                    hsidStr += LeaderCache.migrate_callback_trigger;
+                } else {
+                    hsidStr += LeaderCache.migrate_suffix;
+                }
+                try {
+                    iv2masters.put(pid, hsidStr);
+                } catch (KeeperException | InterruptedException e) {
+                    hostLog.error("Failed to update partition master", e);
+                }
+                return;
+            }
+        }
     }
 
     /**

@@ -71,6 +71,7 @@ public class MpTransactionState extends TransactionState
     private static final String volt_output_buffer_overflow = "V0001";
     private static final int DR_BEGINTXN_MSG_LEN = PartitionDRGateway.getMessageTypeLength(DRRecordType.BEGIN_TXN);
     private static final int DR_ENDTXN_MSG_LEN = PartitionDRGateway.getMessageTypeLength(DRRecordType.END_TXN);
+    public static final String TXN_RESTART_MSG = "Transaction being restarted due to fault recovery or shutdown.";
 
     /**
      *  This is thrown by the TransactionState instance when something
@@ -771,6 +772,31 @@ public class MpTransactionState extends TransactionState
 
     public boolean isRestart() {
         return m_isRestart;
+    }
+
+    // Check if there are any dependencies on failed host for rerouted transactions
+    // upon leader migration.
+    public boolean checkFailedHostDependancies(List<Long> masters) {
+        if (!isFragmentRestarted()) {
+            return false;
+        }
+
+        // The repair process should be triggered with no masters changed.
+        List<Long> copied = Lists.newArrayList(m_masterHSIds.values());
+        copied.removeAll(masters);
+        if (!copied.isEmpty()) {
+            return false;
+        }
+
+        Set<Integer> hostIds = VoltDB.instance().getHostMessenger().getLiveHostIds();
+        for (Set<Long> hsids : m_remoteDeps.values()) {
+            for (Long hsid : hsids) {
+                if (!hostIds.contains(CoreUtils.getHostIdFromHSId(hsid))) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }
 

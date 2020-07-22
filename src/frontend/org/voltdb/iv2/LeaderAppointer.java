@@ -340,7 +340,7 @@ public class LeaderAppointer implements Promotable
             } else {
                 // update partition call backs with correct current leaders after MigratePartitionLeader
                 for (Entry<Integer, LeaderCallBackInfo> entry: cache.entrySet()) {
-                    updatePartitionLeader(entry.getKey(), entry.getValue().m_HSId, entry.getValue().m_isMigratePartitionLeaderRequested);
+                    updatePartitionLeader(entry.getKey(), entry.getValue().m_HSId, entry.getValue().isMigrateRequested());
                 }
             }
         }

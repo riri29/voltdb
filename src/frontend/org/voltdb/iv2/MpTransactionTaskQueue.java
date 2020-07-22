@@ -126,13 +126,15 @@ public class MpTransactionTaskQueue extends TransactionTaskQueue
         for (Entry<Long, TransactionTask> e : currentSet.entrySet()) {
             if (e.getValue() instanceof MpProcedureTask) {
                 MpProcedureTask next = (MpProcedureTask)e.getValue();
+                MpTransactionState txn = (MpTransactionState)next.getTransactionState();
+
                 if (tmLog.isDebugEnabled()) {
                     tmLog.debug("MpTTQ: poisoning task: " + next.toShortString());
                 }
+                boolean reroutedDependency = txn.checkFailedHostDependancies(masters);
                 next.doRestart(masters, partitionMasters);
 
-                if (!balanceSPI) {
-                    MpTransactionState txn = (MpTransactionState)next.getTransactionState();
+                if (!balanceSPI || reroutedDependency) {
                     // inject poison pill
                     FragmentTaskMessage dummy = new FragmentTaskMessage(0L, 0L, txn.txnId, txn.uniqueId,
                             false, false, false, txn.isNPartTxn(), txn.getTimetamp());

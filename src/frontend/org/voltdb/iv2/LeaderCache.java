@@ -68,24 +68,36 @@ public class LeaderCache implements LeaderCacheReader, LeaderCacheWriter {
     protected volatile ImmutableMap<Integer, LeaderCallBackInfo> m_publicCache = ImmutableMap.of();
 
 
-    public static final String migrate_partition_leader_suffix = "_migrated";
+    public static final String migrate_suffix = "_migrated";
+
+    // Used to trigger ZK callback without changing partition masters
+    public static final String migrate_callback_trigger = "_migrated_cb";
 
     public static class LeaderCallBackInfo {
         Long m_lastHSId;
         Long m_HSId;
-        boolean m_isMigratePartitionLeaderRequested;
-
-        public LeaderCallBackInfo(Long lastHSId, Long HSId, boolean isRequested) {
+        boolean m_isMigrateRequested;
+        boolean m_callbackTrigger;
+        public LeaderCallBackInfo(Long lastHSId, Long HSId, boolean isRequested, boolean callbackTrigger) {
             m_lastHSId = lastHSId;
             m_HSId = HSId;
-            m_isMigratePartitionLeaderRequested = isRequested;
+            m_isMigrateRequested = isRequested;
+            m_callbackTrigger = callbackTrigger;
+        }
+
+        public boolean isMigrateRequested() {
+            return m_isMigrateRequested;
+        }
+
+        public boolean isCallbackTrigger() {
+            return m_callbackTrigger;
         }
 
         @Override
         public String toString() {
             return "leader hsid: " + CoreUtils.hsIdToString(m_HSId) +
                     ( m_lastHSId != Long.MAX_VALUE ? " (previously " + CoreUtils.hsIdToString(m_lastHSId) + ")" : "" ) +
-                    ( m_isMigratePartitionLeaderRequested ? ", MigratePartitionLeader requested" : "");
+                    ( m_isMigrateRequested ? ", MigratePartitionLeader requested" : "");
         }
     }
 
@@ -94,14 +106,15 @@ public class LeaderCache implements LeaderCacheReader, LeaderCacheWriter {
      * When this string is updated, we can tell the reason why HSID is changed.
      */
     public static String suffixHSIdsWithMigratePartitionLeaderRequest(Long HSId) {
-        return Long.toString(Long.MAX_VALUE) + "/" + Long.toString(HSId) + migrate_partition_leader_suffix;
+        return Long.toString(Long.MAX_VALUE) + "/" + Long.toString(HSId) + migrate_suffix;
     }
 
     /**
      * Is the data string hsid written because of MigratePartitionLeader request?
      */
     public static boolean isHSIdFromMigratePartitionLeaderRequest(String HSIdInfo) {
-        return HSIdInfo.endsWith(migrate_partition_leader_suffix);
+        return (HSIdInfo.endsWith(migrate_suffix) ||
+                HSIdInfo.endsWith(migrate_callback_trigger));
     }
 
     public static LeaderCallBackInfo buildLeaderCallbackFromString(String HSIdInfo) {
@@ -109,14 +122,15 @@ public class LeaderCache implements LeaderCacheReader, LeaderCacheWriter {
         assert(nextHSIdOffset >= 0);
         long lastHSId = Long.parseLong(HSIdInfo.substring(0, nextHSIdOffset));
         boolean migratePartitionLeader = isHSIdFromMigratePartitionLeaderRequest(HSIdInfo);
+        boolean callbackTrigger = HSIdInfo.endsWith(migrate_callback_trigger);
         long nextHSId;
         if (migratePartitionLeader) {
-            nextHSId = Long.parseLong(HSIdInfo.substring(nextHSIdOffset+1, HSIdInfo.length() - migrate_partition_leader_suffix.length()));
+            nextHSId = Long.parseLong(HSIdInfo.substring(nextHSIdOffset+1, HSIdInfo.length() - migrate_suffix.length()));
         }
         else {
             nextHSId = Long.parseLong(HSIdInfo.substring(nextHSIdOffset+1));
         }
-        return new LeaderCallBackInfo(lastHSId, nextHSId, migratePartitionLeader);
+        return new LeaderCallBackInfo(lastHSId, nextHSId, migratePartitionLeader, callbackTrigger);
     }
 
     /**
@@ -202,7 +216,7 @@ public class LeaderCache implements LeaderCacheReader, LeaderCacheWriter {
     public boolean isMigratePartitionLeaderRequested(int partitionId) {
         LeaderCallBackInfo info = m_publicCache.get(partitionId);
         if (info != null) {
-            return info.m_isMigratePartitionLeaderRequested;
+            return info.m_isMigrateRequested;
         }
         return false;
     }
