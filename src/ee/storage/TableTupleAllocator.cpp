@@ -182,6 +182,20 @@ template<allocator_enum_type T> inline size_t ChunkHolder<T>::tupleSize() const 
     return m_tupleSize;
 }
 
+template<allocator_enum_type T> inline size_t ChunkHolder<T>::capacity() const noexcept {
+    assert (0 == (reinterpret_cast<char const*>(range_end()) -
+            reinterpret_cast<char const*>(range_begin())) % tupleSize());
+    return (reinterpret_cast<char const*>(range_end()) -
+            reinterpret_cast<char const*>(range_begin())) / tupleSize();
+}
+
+template<allocator_enum_type T> inline size_t ChunkHolder<T>::used() const noexcept {
+    assert (0 == (reinterpret_cast<char const*>(range_right()) -
+            reinterpret_cast<char const*>(range_left())) % tupleSize());
+    return (reinterpret_cast<char const*>(range_right()) -
+            reinterpret_cast<char const*>(range_left())) / tupleSize();
+}
+
 inline EagerNonCompactingChunk::EagerNonCompactingChunk(id_type s1, size_t s2, size_t s3) :
     super(s1, s2, s3) {}
 
@@ -588,8 +602,8 @@ inline void CompactingStorageTrait::thaw() {
             auto& storage = reinterpret_cast<CompactingChunks&>(m_storage);
             auto const& beginTxn = storage.beginTxn();
             bool const empty = beginTxn.empty();
-            auto const stop = empty ? 0 : beginTxn.iterator()->id();
             auto id = m_storage.front().id();
+            auto const stop = empty ? id : beginTxn.iterator()->id();
             if (storage.finalizerAndCopier() &&
                     static_cast<bool>(storage.frozenBoundaries())) { // NOTE: Finalize inside frozen range only.
                 auto const boundaries =
@@ -602,32 +616,42 @@ inline void CompactingStorageTrait::thaw() {
                     assert(m_storage.front().range_left() == m_storage.front().range_right());
                     if (nullptr != (boundary = id == boundaries.first.id() ?    // on either left or right frozen chunk
                                 &boundaries.first : (id == boundaries.second.id() ? &boundaries.second : nullptr))) {
+                        // on either boundary
                         storage.pop_finalize(boundary->left(), boundary->right());
-                    } else {                       // whole chunk finalizable
+                    } else {                       // in between: whole chunk finalizable
                         auto const& chunk = m_storage.front();
                         storage.pop_finalize(chunk.range_begin(), chunk.range_end());
                     }
                     id = m_storage.front().id();
                 }
-                if (! m_storage.empty() && id == boundaries.second.id()) {     // right frozen boundary
-                    storage.finalizerAndCopier().finalize(boundaries.second.left(),
+                boundary = &boundaries.second;                         // set ptr to right boundary
+                if (! m_storage.empty() && id == boundary->id()) {     // on right frozen boundary
+                    storage.finalizerAndCopier().finalize(boundary->left(),
                             id == stop ?
-                                min<void const*>(beginTxn.iterator()->range_left(), boundaries.second.right()) :
-                                boundaries.second.right(),
+                                min<void const*>(beginTxn.iterator()->range_left(), boundary->right()) :
+                                boundary->right(),
                             storage.tupleSize());
                 }
-                while (less_rolling(id, stop)) {                 // pop until txn beg becomes 1st chunk
+                while (less_rolling(id, stop)) {                       // pop until txn beg becomes 1st chunk
                     storage.pop_front();
-                    ++id;
+                    id = m_storage.front().id();
                 }
-                if (less_rolling(id, boundaries.second.id())) {
+                if (less_rolling(id, boundary->id())) {                // not reaching right boundary
                     assert(stop == m_storage.front().id());
-                    // current chunk is completely frozen (i.e.
-                    // middle of frozen boundaries); but
-                    // might not be full from beginning, and
-                    // those gap need to be finalized
-                    storage.finalizerAndCopier().finalize(beginTxn.iterator()->range_begin(),
-                            beginTxn.iterator()->range_left(), storage.tupleSize());
+                    if (id == (boundary = &boundaries.first)->id()) {
+                        // left_id + 1 == right_id, on left boundary
+                        assert(boundaries.first.left() <= beginTxn.iterator()->range_left());
+                        storage.finalizerAndCopier().finalize(boundary->left(),
+                                min<void const*>(beginTxn.iterator()->range_left(), boundary->right()),
+                                storage.tupleSize());
+                    } else {
+                        // current chunk is completely frozen (i.e.
+                        // middle of frozen boundaries); but
+                        // might not be full from beginning, and
+                        // those gap need to be finalized
+                        storage.finalizerAndCopier().finalize(beginTxn.iterator()->range_begin(),
+                                beginTxn.iterator()->range_left(), storage.tupleSize());
+                    }
                 }
             } else {                       // No finalization needed
                 while (! m_storage.empty() && (empty || less_rolling(id++, stop))) {
@@ -683,11 +707,6 @@ namespace std {
     template<> struct less_equal<position_type> {
         inline bool operator()(position_type const& lhs, position_type const& rhs) const noexcept {
             return ! less<position_type>()(rhs, lhs);
-        }
-    };
-    template<> struct less<ChunkHolder<>> {
-        inline bool operator()(ChunkHolder<> const& lhs, ChunkHolder<> const& rhs) const noexcept {
-            return less_rolling(lhs.id(), rhs.id());
         }
     };
 }

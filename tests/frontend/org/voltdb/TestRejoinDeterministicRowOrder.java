@@ -108,11 +108,8 @@ public class TestRejoinDeterministicRowOrder extends RejoinTestBase {
                         m_rateLimit.release();
                         if (clientResponse.getStatus() != ClientResponse.SUCCESS) {
                             System.err.println(clientResponse.getStatusString());
-                            return;
-                        }
-                        if (clientResponse.getResults()[0].asScalarLong() != 1) {
+                        } else if (clientResponse.getResults()[0].asScalarLong() != 1) {
                             System.err.println("Update didn't happen");
-                            return;
                         }
                     }
 
@@ -135,27 +132,25 @@ public class TestRejoinDeterministicRowOrder extends RejoinTestBase {
                                 continue;
                             }
                             final int action = m_rand.nextInt(4);
-                            if (action == 0) {
+                            if (action == 0) {                                                     // delete
                                 m_deletedValues.add(updateKey);
-                                m_client.callProcedure( new ProcedureCallback() {
-
+                                m_client.callProcedure(new ProcedureCallback() {
                                     @Override
                                     public void clientCallback(ClientResponse clientResponse)
-                                            throws Exception {
+                                        throws Exception {
                                         m_rateLimit.release();
                                         if (clientResponse.getStatus() != ClientResponse.SUCCESS) {
                                             System.err.println("Delete failed for values ("
-                                                + updateKey + ") " + clientResponse.getStatusString());
-                                            return;
-                                        }
-                                        if (clientResponse.getResults()[0].asScalarLong() != 1) {
+                                                    + updateKey + ") " + clientResponse.getStatusString());
+                                        } else if (clientResponse.getResults()[0].asScalarLong() != 1) {
                                             System.err.println("Delete row count error for values ("
-                                                + updateKey + ") ");
+                                                    + updateKey + ") ");
                                         }
                                     }
 
-                                }, "Delete" + m_tableName, updateKey);
-                            } else if (action == 1) {
+                                },
+                                "Delete" + m_tableName, updateKey);
+                            } else if (action == 1) {                                              // insert
                                 final int newKey = m_numTuples + addedTuples++;
                                 int value = m_rand.nextInt(1000000);
                                 Object[] params = new Object[m_maxStringLen == 0 ? 2 : 3];
@@ -165,54 +160,40 @@ public class TestRejoinDeterministicRowOrder extends RejoinTestBase {
                                     params[2] = testLongString1.substring(0, m_rand.nextInt(m_maxStringLen));
                                 }
 //                                m_serverValues.add(value);
-                                m_client.callProcedure( new ProcedureCallback() {
-
+                                m_client.callProcedure(new ProcedureCallback() {
                                     @Override
-                                    public void clientCallback(ClientResponse clientResponse)
-                                            throws Exception {
+                                    public void clientCallback(ClientResponse clientResponse) throws Exception {
                                         m_rateLimit.release();
                                         if (clientResponse.getStatus() != ClientResponse.SUCCESS) {
                                             System.err.println(clientResponse.getStatusString());
-                                            return;
-                                        }
-                                        if (clientResponse.getResults()[0].asScalarLong() != 1) {
+                                        } else if (clientResponse.getResults()[0].asScalarLong() != 1) {
                                             System.err.println("Insert didn't happen");
-                                            return;
                                         }
                                     }
-
                                 }, "Insert" + m_tableName, params);
-
-                            } else {
+                            } else {                                                               // update
                                 final int updateValue = m_rand.nextInt(1000000);
                                 Object[] params = new Object[2];
                                 params[1] = updateKey;
                                 if (m_maxStringLen > 0) {
                                     params[0] = testLongString2.substring(0, m_rand.nextInt(m_maxStringLen));
-                                }
-                                else {
+                                } else {
                                     params[0] = updateValue;
 //                                  m_serverValues.set(updateKey, updateValue);
                                 }
-                                m_client.callProcedure( new ProcedureCallback() {
-
+                                m_client.callProcedure(new ProcedureCallback() {
                                     @Override
-                                    public void clientCallback(ClientResponse clientResponse)
-                                            throws Exception {
+                                    public void clientCallback(ClientResponse clientResponse) throws Exception {
                                         m_rateLimit.release();
                                         if (clientResponse.getStatus() != ClientResponse.SUCCESS) {
                                             System.err.println("Update failed for values ("
                                                 + updateKey + "," + updateValue +
                                                 ") " + clientResponse.getStatusString());
-                                            return;
-                                        }
-                                        if (clientResponse.getResults()[0].asScalarLong() != 1) {
+                                        } else if (clientResponse.getResults()[0].asScalarLong() != 1) {
                                             System.err.println("Update row count error for values ("
-                                                + updateKey + "," + updateValue +
-                                                ") ");
+                                                + updateKey + "," + updateValue + ") ");
                                         }
                                     }
-
                                 }, "Update" + m_tableName, params);
                             }
                         }
@@ -263,19 +244,16 @@ public class TestRejoinDeterministicRowOrder extends RejoinTestBase {
                         monitorLoop++;
                     }
                     assertEquals(vt.getRowCount(), SNAPSHOT_TABLE_COUNT*2);
-                }
-                catch (Exception e) {
+                } catch (Exception e) {
                     e.printStackTrace();
                 }
                 try {
                     String[] localSnapshots = {"--self", "--nonce", snapshotNonce, "--dirs", snapshotDir, "--ignoreOrder"};
                     SnapshotComparer.main(localSnapshots);
                     fail();
-                }
-                catch (CheckExitCalled e) {
+                } catch (CheckExitCalled e) {
                     assert(e.getStatus() == STATUS_OK);
-                }
-                catch (Exception e) {
+                } catch (Exception e) {
                     fail();
                 }
             };
@@ -337,8 +315,7 @@ public class TestRejoinDeterministicRowOrder extends RejoinTestBase {
                     if (attempts == 6) {
                         rejoinFailed.set(true);
                         break;
-                    }
-                    if (cluster.recoverOne(1, 0)) {
+                    } else if (cluster.recoverOne(1, 0)) {
                         break;
                     }
                     attempts++;
@@ -378,8 +355,7 @@ public class TestRejoinDeterministicRowOrder extends RejoinTestBase {
             TableVerifier verifier = new TableVerifier(client);
             verifier.start();
             verifier.join();
-        }
-        finally {
+        } finally {
             client.close();
             cluster.shutDown();
         }
@@ -389,7 +365,7 @@ public class TestRejoinDeterministicRowOrder extends RejoinTestBase {
     public void testRejoinWithMultipleVarchars() throws Exception {
         VoltProjectBuilder builder = getBuilderForTest();
         builder.setSecurityEnabled(true, true);
-        final int numTuples = 1000;
+        final int numTuples = 1_000;
         final int numHosts = 2;
         final int kfactor = 1;
         final int sitesPerHost = 1;
@@ -422,8 +398,7 @@ public class TestRejoinDeterministicRowOrder extends RejoinTestBase {
                     if (attempts == 6) {
                         rejoinFailed.set(true);
                         break;
-                    }
-                    if (cluster.recoverOne(1, 0)) {
+                    } else if (cluster.recoverOne(1, 0)) {
                         break;
                     }
                     attempts++;
@@ -462,8 +437,7 @@ public class TestRejoinDeterministicRowOrder extends RejoinTestBase {
             TableVerifier verifier = new TableVerifier(client);
             verifier.start();
             verifier.join();
-        }
-        finally {
+        } finally {
             client.close();
             cluster.shutDown();
         }

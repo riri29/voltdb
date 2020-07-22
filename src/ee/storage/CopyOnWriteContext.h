@@ -16,8 +16,6 @@
  */
 #pragma once
 
-#include <string>
-#include <vector>
 #include <utility>
 #include "common/TupleOutputStreamProcessor.h"
 #include "storage/persistenttable.h"
@@ -25,11 +23,8 @@
 #include "storage/TableStreamerContext.h"
 #include "common/Pool.hpp"
 #include "common/tabletuple.h"
-#include <boost/scoped_ptr.hpp>
-#include <boost/ptr_container/ptr_vector.hpp>
 
 namespace voltdb {
-class ParsedPredicate;
 class TupleOutputStreamProcessor;
 class PersistentTableSurgeon;
 
@@ -39,8 +34,7 @@ class CopyOnWriteContext : public TableStreamerContext {
             const  HiddenColumnFilter&, const std::vector<std::string>&);
 
 public:
-
-    virtual ~CopyOnWriteContext();
+    virtual ~CopyOnWriteContext(){}
 
     /**
      * Activation handler.
@@ -87,7 +81,7 @@ private:
     PersistentTable::Alloc& m_allocator;
     int64_t m_totalTuples;
     int64_t m_tuplesRemaining;
-    int64_t m_serializationBatches;
+    int64_t m_serializationBatches = 0;
     const bool m_replicated;
     const HiddenColumnFilter m_hiddenColumnFilter;
 };

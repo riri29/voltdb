@@ -44,52 +44,39 @@ CopyOnWriteContext::CopyOnWriteContext(
              m_allocator(table.allocator()),
              m_totalTuples(totalTuples),
              m_tuplesRemaining(totalTuples),
-             m_serializationBatches(0),
              m_replicated(table.isReplicatedTable()),
-             m_hiddenColumnFilter(hiddenColumnFilter)
-{
-}
-
-/**
- * Destructor.
- */
-CopyOnWriteContext::~CopyOnWriteContext()
-{
-}
+             m_hiddenColumnFilter(hiddenColumnFilter) { }
 
 
 /**
  * Activation handler.
  */
 TableStreamerContext::ActivationReturnCode
-CopyOnWriteContext::handleActivation(TableStreamType streamType)
-{
+CopyOnWriteContext::handleActivation(TableStreamType streamType) {
     // Only support snapshot streams.
     if (streamType != TABLE_STREAM_SNAPSHOT) {
         return ACTIVATION_UNSUPPORTED;
-    }
-
-    if (m_surgeon.hasIndex() && !m_surgeon.isIndexingComplete()) {
+    } else if (m_surgeon.hasIndex() && !m_surgeon.isIndexingComplete()) {
         LogManager::getThreadLogger(LOGGERID_HOST)->log(LOGLEVEL_WARN,
             "COW context activation is not allowed while elastic indexing is in progress.");
         return ACTIVATION_FAILED;
+    } else {
+        m_surgeon.activateSnapshot(TABLE_STREAM_SNAPSHOT);
+        return ACTIVATION_SUCCEEDED;
     }
-
-    m_surgeon.activateSnapshot(TABLE_STREAM_SNAPSHOT);
-    return ACTIVATION_SUCCEEDED;
 }
 
 /**
 * Reactivation handler.
 */
 TableStreamerContext::ActivationReturnCode
-CopyOnWriteContext::handleReactivation(TableStreamType streamType)
-{
+CopyOnWriteContext::handleReactivation(TableStreamType streamType) {
     // Not support multiple snapshot streams.
     if (streamType == TABLE_STREAM_SNAPSHOT) {
         return ACTIVATION_FAILED;
+    } else {
+        return ACTIVATION_UNSUPPORTED;
     }
-    return ACTIVATION_UNSUPPORTED;
 }
 
 /*
@@ -97,7 +84,7 @@ CopyOnWriteContext::handleReactivation(TableStreamType streamType)
  * Return remaining tuple count, 0 if done, or TABLE_STREAM_SERIALIZATION_ERROR on error.
  */
 int64_t CopyOnWriteContext::handleStreamMore(TupleOutputStreamProcessor &outputStreams,
-                                             std::vector<int> &retPositions) {
+        std::vector<int> &retPositions) {
 
     // Don't expect to be re-called after streaming all the tuples.
     if (m_totalTuples != 0 && m_tuplesRemaining == 0) {

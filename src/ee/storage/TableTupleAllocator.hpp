@@ -235,6 +235,8 @@ namespace voltdb {
             void*const range_left() const noexcept;
             void*const range_right() const noexcept;
             size_t tupleSize() const noexcept;
+            size_t capacity() const noexcept;
+            size_t used() const noexcept;
             id_type id() const noexcept;
             bool valid(bool compact) const noexcept;
         };
