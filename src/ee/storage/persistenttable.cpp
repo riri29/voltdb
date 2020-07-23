@@ -78,33 +78,16 @@ PersistentTable::PersistentTable(int partitionColumn,
                                  bool drEnabled,
                                  bool isReplicated,
                                  TableType tableType)
-    : ViewableAndReplicableTable(tableAllocationTargetSize == 0 ? TABLE_BLOCKSIZE : tableAllocationTargetSize, partitionColumn, isReplicated)
+    : ViewableAndReplicableTable(tableAllocationTargetSize == 0 ?
+            TABLE_BLOCKSIZE :
+            tableAllocationTargetSize, partitionColumn, isReplicated)
     , m_isMaterialized(isMaterialized)   // Other constructors are dependent on this one
-    , m_allowNulls()
     , m_tupleLimit(tupleLimit)
-    , m_tuplesPerChunk(0)
-    , m_purgeExecutorVector()
     , m_stats(this)
-    , m_snapshotStarted(false)
-    , m_tableStreamer()
-    , m_invisibleTuplesPendingDeleteCount(0)
-    , m_batchDeleteTupleCount(0)
     , m_surgeon(*this)
-    , m_tableForStreamIndexing(nullptr)
     , m_drEnabled(drEnabled && !isMaterialized)
-    , m_noAvailableUniqueIndex(false)
-    , m_smallestUniqueIndex(nullptr)
-    , m_smallestUniqueIndexCrc(0)
-    , m_pkeyIndex(nullptr)
-    , m_mvHandler(nullptr)
-    , m_mvTrigger(nullptr)
-    , m_viewHandlers()
-    , m_deltaTable(nullptr)
-    , m_deltaTableActive(false)
     , m_releaseReplicated(this)
-    , m_tableType(tableType)
-    , m_shadowStream(nullptr)
-{
+    , m_tableType(tableType) {
     if (!m_isMaterialized && m_isReplicated != (m_partitionColumn == -1)) {
         VOLT_ERROR("CAUTION: detected inconsistent isReplicate flag. Table name: %s, m_isMaterialized: %s, m_partitionColumn: %d, m_isReplicated: %s\n",
                 m_name.c_str(), m_isMaterialized ? "true" : "false", m_partitionColumn, m_isReplicated ? "true" : "false");
@@ -208,6 +191,7 @@ void PersistentTable::checkContext(const char* operation) const {
        message << boost::stacktrace::stacktrace() << '\n';
        string msg = message.str();
        LogManager::getThreadLogger(LOGGERID_HOST)->log(voltdb::LOGLEVEL_ERROR, &msg);
+       vassert(false);
     }
 }
 // ------------------------------------------------------------------
@@ -1821,6 +1805,7 @@ bool PersistentTable::stopSnapshot(TableStreamType streamType, bool forceDeactiv
                 ++*m_snapIt;
             }
             if (m_snapIt->drained() || forceDeactivation) {
+                checkContext("Thawing");
                 if (isReplicatedTable()) {
                     ScopedReplicatedResourceLock scopedLock;
                     ExecuteWithMpMemory useMpMemory;
@@ -1834,7 +1819,7 @@ bool PersistentTable::stopSnapshot(TableStreamType streamType, bool forceDeactiv
             }
         }
     } else if (streamType == TABLE_STREAM_ELASTIC_INDEX) {
-        if (m_elasticIt.get() != nullptr && m_elasticIt->drained()) {
+        if (m_elasticIt && m_elasticIt->drained()) {
             m_elasticIt.reset();
         }
     }

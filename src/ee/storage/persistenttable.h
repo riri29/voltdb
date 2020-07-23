@@ -718,17 +718,17 @@ private:
     //Is this a materialized view?
     const bool m_isMaterialized;
 
-    std::vector<bool> m_allowNulls;
+    std::vector<bool> m_allowNulls{};
 
     // table row count limit
     int m_tupleLimit;
 
     // number of tuples per chunk
-    uint32_t m_tuplesPerChunk;
+    uint32_t m_tuplesPerChunk = 0;
 
     // Executor vector to be executed when imminent insert will exceed
     // tuple limit
-    boost::shared_ptr<ExecutorVector> m_purgeExecutorVector;
+    boost::shared_ptr<ExecutorVector> m_purgeExecutorVector{};
 
     // STATS
     PersistentTableStats m_stats;
@@ -737,21 +737,21 @@ private:
     std::unique_ptr<Alloc> m_dataStorage;
     std::shared_ptr<SnapshotIterator> m_snapIt;
     std::shared_ptr<ElasticIndexIterator> m_elasticIt ;
-    bool m_snapshotStarted;
+    bool m_snapshotStarted = false;
 
     // Provides access to all table streaming apparati, including COW and recovery.
-    boost::shared_ptr<TableStreamerInterface> m_tableStreamer;
+    boost::shared_ptr<TableStreamerInterface> m_tableStreamer{};
 
     // This is a testability feature not intended for use in product logic.
-    int m_invisibleTuplesPendingDeleteCount;
-    size_t m_batchDeleteTupleCount;
+    int m_invisibleTuplesPendingDeleteCount = 0;
+    size_t m_batchDeleteTupleCount = 0;
 
     // Surgeon passed to classes requiring "deep" access to avoid excessive friendship.
     PersistentTableSurgeon m_surgeon;
 
     // The original table subject to ELASTIC INDEX streaming prior to any swaps
     // or truncates in the current transaction.
-    PersistentTable*  m_tableForStreamIndexing;
+    PersistentTable* m_tableForStreamIndexing = nullptr;
 
     // is DR enabled
     bool m_drEnabled;
@@ -759,26 +759,26 @@ private:
     // SHA-1 of signature string
     char m_signature[20];
 
-    bool m_noAvailableUniqueIndex;
+    bool m_noAvailableUniqueIndex = false;
 
-    TableIndex* m_smallestUniqueIndex;
+    TableIndex* m_smallestUniqueIndex = nullptr;
 
-    uint32_t m_smallestUniqueIndexCrc;
+    uint32_t m_smallestUniqueIndexCrc = 0;
 
     // indexes
     std::vector<TableIndex*> m_indexes;
 
     std::vector<TableIndex*> m_uniqueIndexes;
 
-    TableIndex* m_pkeyIndex;
+    TableIndex* m_pkeyIndex = nullptr;
 
     // If this is a view table, maintain a handler to handle the view update work.
-    MaterializedViewHandler* m_mvHandler;
-    MaterializedViewTriggerForInsert* m_mvTrigger;
+    MaterializedViewHandler* m_mvHandler = nullptr;
+    MaterializedViewTriggerForInsert* m_mvTrigger = nullptr;
 
     // If this is a source table of a view, notify all the relevant view handlers
     // when an update is needed.
-    std::vector<MaterializedViewHandler*> m_viewHandlers;
+    std::vector<MaterializedViewHandler*> m_viewHandlers{};
 
     // The delta table is only created when a view defined on a join query is
     // referencing this table as one of its source tables.
@@ -787,9 +787,9 @@ private:
     // this table will return the delta table instead of the original table.
     // WARNING: Do not manually flip this m_deltaTableActive flag. Instead,
     // use ScopedDeltaTableContext (currently defined in MaterializedViewHandler.h).
-    PersistentTable* m_deltaTable;
+    PersistentTable* m_deltaTable = nullptr;
 
-    bool m_deltaTableActive;
+    bool m_deltaTableActive = false;
 
     // Objects used to coordinate compaction of Replicated tables
     SynchronizedUndoQuantumReleaseInterest m_releaseReplicated;
@@ -797,7 +797,7 @@ private:
 
     // Pointer to Shadow streamed table (For Migrate) or nullptr
     TableType m_tableType;
-    StreamedTable* m_shadowStream;
+    StreamedTable* m_shadowStream = nullptr;
     typedef std::set<void*> MigratingBatch;
     typedef std::map<int64_t, MigratingBatch> MigratingRows;
     MigratingRows m_migratingRows;
