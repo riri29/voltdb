@@ -774,8 +774,7 @@ public class MpTransactionState extends TransactionState
         return m_isRestart;
     }
 
-    // Check if there are any dependencies on failed host for rerouted transactions
-    // upon leader migration.
+    // Check dependencies on failed host for rerouted transactions upon leader migration.
     public boolean checkFailedHostDependancies(List<Long> masters) {
         if (!isFragmentRestarted()) {
             return false;

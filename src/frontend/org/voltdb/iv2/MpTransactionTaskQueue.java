@@ -131,10 +131,12 @@ public class MpTransactionTaskQueue extends TransactionTaskQueue
                 if (tmLog.isDebugEnabled()) {
                     tmLog.debug("MpTTQ: poisoning task: " + next.toShortString());
                 }
-                boolean reroutedDependency = txn.checkFailedHostDependancies(masters);
+
+                // If there are dependencies on failed host for rerouted transaction, restart the transaction
+                boolean zombieDependency = txn.checkFailedHostDependancies(masters);
                 next.doRestart(masters, partitionMasters);
 
-                if (!balanceSPI || reroutedDependency) {
+                if (!balanceSPI || zombieDependency) {
                     // inject poison pill
                     FragmentTaskMessage dummy = new FragmentTaskMessage(0L, 0L, txn.txnId, txn.uniqueId,
                             false, false, false, txn.isNPartTxn(), txn.getTimetamp());
@@ -158,20 +160,9 @@ public class MpTransactionTaskQueue extends TransactionTaskQueue
         Iterator<TransactionTask> iter = m_backlog.iterator();
         while (iter.hasNext()) {
             TransactionTask tt = iter.next();
-            if (tt instanceof MpProcedureTask) {
-                MpProcedureTask next = (MpProcedureTask)tt;
-
-                if (tmLog.isDebugEnabled()) {
-                    tmLog.debug("Repair updating task: " + next.toShortString() + " with masters: " + CoreUtils.hsIdCollectionToString(masters));
-                }
-                next.updateMasters(masters, partitionMasters);
-            }
-            else if (tt instanceof EveryPartitionTask) {
-                EveryPartitionTask next = (EveryPartitionTask)tt;
-                if (tmLog.isDebugEnabled())  {
-                    tmLog.debug("Repair updating EPT task: " + next + " with masters: " + CoreUtils.hsIdCollectionToString(masters));
-                }
-                next.updateMasters(masters);
+            tt.updateMasters(masters, partitionMasters);
+            if (tmLog.isDebugEnabled()) {
+                tmLog.debug("Repair updating task: " + tt + " with masters: " + CoreUtils.hsIdCollectionToString(masters));
             }
         }
     }

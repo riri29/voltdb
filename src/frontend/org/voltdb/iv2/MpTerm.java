@@ -76,6 +76,9 @@ public class MpTerm implements Term
                 tmLog.debug(m_whoami + "LeaderCache change updating leader list to: "
                         + CoreUtils.hsIdCollectionToString(updatedLeaders) + ". MigratePartitionLeader:" + migratePartitionLeaderRequested);
             }
+            if (m_knownLeaders.equals(updatedLeaders)) {
+                migratePartitionLeaderRequested = true;
+            }
             m_knownLeaders = updatedLeaders;
 
             ((MpInitiatorMailbox)m_mailbox).updateReplicas(new ArrayList<Long>(m_knownLeaders), cacheCopy,
