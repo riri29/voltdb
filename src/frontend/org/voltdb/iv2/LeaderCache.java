@@ -124,10 +124,11 @@ public class LeaderCache implements LeaderCacheReader, LeaderCacheWriter {
         boolean migratePartitionLeader = isHSIdFromMigratePartitionLeaderRequest(HSIdInfo);
         boolean callbackTrigger = HSIdInfo.endsWith(migrate_callback_trigger);
         long nextHSId;
-        if (migratePartitionLeader) {
+        if (callbackTrigger) {
+            nextHSId = Long.parseLong(HSIdInfo.substring(nextHSIdOffset+1, HSIdInfo.length() - migrate_callback_trigger.length()));
+        } else if (migratePartitionLeader) {
             nextHSId = Long.parseLong(HSIdInfo.substring(nextHSIdOffset+1, HSIdInfo.length() - migrate_suffix.length()));
-        }
-        else {
+        } else {
             nextHSId = Long.parseLong(HSIdInfo.substring(nextHSIdOffset+1));
         }
         return new LeaderCallBackInfo(lastHSId, nextHSId, migratePartitionLeader, callbackTrigger);
