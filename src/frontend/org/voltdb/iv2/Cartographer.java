@@ -1087,9 +1087,9 @@ public class Cartographer extends StatsSource
                         VoltZK.iv2masters);
                 String hsidStr =  Long.toString(Long.MAX_VALUE) + "/" + Long.toString(hsid);
                 if (info.getValue().isCallbackTrigger()) {
-                    hsidStr += LeaderCache.migrate_callback_trigger;
-                } else {
                     hsidStr += LeaderCache.migrate_suffix;
+                } else {
+                    hsidStr += LeaderCache.migrate_callback_trigger;
                 }
                 try {
                     iv2masters.put(pid, hsidStr);

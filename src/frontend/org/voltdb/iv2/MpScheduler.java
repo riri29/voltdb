@@ -215,6 +215,10 @@ public class MpScheduler extends Scheduler
         Set<Long> previousLeaders = Sets.newHashSet();
         previousLeaders.addAll(m_iv2Masters);
         previousLeaders.removeAll(updatedReplicas);
+        // Update is triggered by manufactured callback
+        if (previousLeaders.isEmpty()) {
+            return;
+        }
          // Find the new leader
         Set<Long> currentLeaders = Sets.newHashSet();
         currentLeaders.addAll(updatedReplicas);
