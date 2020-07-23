@@ -15,8 +15,7 @@
  * along with VoltDB.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef VOLTDB_EXECUTEWITHMPMEMORY_H
-#define VOLTDB_EXECUTEWITHMPMEMORY_H
+#pragma once
 
 #include "common/executorcontext.hpp"
 #include "common/SynchronizedThreadLock.h"
@@ -25,58 +24,45 @@
 namespace voltdb {
 
 class ExecuteWithMpMemory {
+    bool const m_switch;
 public:
-    ExecuteWithMpMemory();
-
+    ExecuteWithMpMemory(bool = true);
     ~ExecuteWithMpMemory();
+    static void run(std::function<void(void)> const&&, bool);
 };
 
 class ConditionalExecuteWithMpMemory {
+    bool const m_usingMpMemory;
 public:
     ConditionalExecuteWithMpMemory(bool needMpMemory);
-
     ~ConditionalExecuteWithMpMemory();
-
-private:
-    bool m_usingMpMemory;
 };
 
 
 class ConditionalExecuteOutsideMpMemory {
+    bool const m_notUsingMpMemory;
 public:
     ConditionalExecuteOutsideMpMemory(bool haveMpMemory);
-
     ~ConditionalExecuteOutsideMpMemory();
-
-private:
-    bool m_notUsingMpMemory;
 };
 
 class ConditionalSynchronizedExecuteWithMpMemory {
+    bool const m_usingMpMemoryOnLowestThread;
+    bool const m_okToExecute;
 public:
     ConditionalSynchronizedExecuteWithMpMemory(
-            bool needMpMemoryOnLowestThread, bool isLowestSite, std::function<void()> initiator)
-    : m_usingMpMemoryOnLowestThread(needMpMemoryOnLowestThread && isLowestSite)
-    , m_okToExecute(!needMpMemoryOnLowestThread || m_usingMpMemoryOnLowestThread) {
-        if (needMpMemoryOnLowestThread) {
-            if (SynchronizedThreadLock::countDownGlobalTxnStartCount(isLowestSite)) {
-                VOLT_DEBUG("Entering Conditional Sync UseMPmemory");
-                SynchronizedThreadLock::assumeMpMemoryContext();
-                // This must be done in here to avoid a race with the non-MP path.
-                initiator();
-            }
-        }
-    }
+            bool needMpMemoryOnLowestThread, bool isLowestSite, std::function<void()> initiator);
     ~ConditionalSynchronizedExecuteWithMpMemory();
     bool okToExecute() const {
         return m_okToExecute;
     }
-private:
-    bool m_usingMpMemoryOnLowestThread;
-    bool m_okToExecute;
 };
 
 class ExecuteWithAllSitesMemory {
+    const EngineLocals m_engineLocals;
+#ifndef NDEBUG
+    const bool m_wasUsingMpMemory;
+#endif
 public:
     ExecuteWithAllSitesMemory();
 
@@ -84,30 +70,23 @@ public:
 
     SharedEngineLocalsType::iterator begin();
     SharedEngineLocalsType::iterator end();
-
-private:
-    const EngineLocals m_engineLocals;
-#ifndef NDEBUG
-    const bool m_wasUsingMpMemory;
-#endif
 };
 
 class ScopedReplicatedResourceLock {
+    bool const m_lock;
 public:
-    ScopedReplicatedResourceLock();
+    ScopedReplicatedResourceLock(bool = true);
     ~ScopedReplicatedResourceLock();
+    static void run(std::function<void(void)> const&&, bool);
 };
 
 class ConditionalExecuteWithMpMemoryAndScopedResourceLock {
+    bool m_usingMpMemory;
 public:
-    ConditionalExecuteWithMpMemoryAndScopedResourceLock(bool needMpMemory);
+    ConditionalExecuteWithMpMemoryAndScopedResourceLock(bool);
 
     ~ConditionalExecuteWithMpMemoryAndScopedResourceLock();
-
-private:
-    bool m_usingMpMemory;
 };
 
 } // end namespace voltdb
 
-#endif //VOLTDB_EXECUTEWITHMPMEMORY_H

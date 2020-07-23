@@ -486,7 +486,7 @@ public:
     // The vector "output" arguments detail the non-inline object memory management
     // required of the upcoming release or undo.
     void copyForPersistentUpdate(const TableTuple &source,
-                                 std::vector<char*> &oldObjects, std::vector<char*> &newObjects);
+            std::vector<char*> &oldObjects, std::vector<char*> &newObjects);
 
     void copy(const TableTuple &source);
 

@@ -22,16 +22,37 @@
 
 namespace voltdb {
 
-ExecuteWithMpMemory::ExecuteWithMpMemory() {
-    VOLT_DEBUG("Entering UseMPmemory");
-    SynchronizedThreadLock::assumeMpMemoryContext();
-}
-ExecuteWithMpMemory::~ExecuteWithMpMemory() {
-    VOLT_DEBUG("Exiting UseMPmemory");
-    SynchronizedThreadLock::assumeLocalSiteContext();
+ExecuteWithMpMemory::ExecuteWithMpMemory(bool f) : m_switch(f) {
+    if (m_switch) {
+        VOLT_DEBUG("Entering UseMPmemory");
+        SynchronizedThreadLock::assumeMpMemoryContext();
+    }
 }
 
-ConditionalExecuteWithMpMemory::ConditionalExecuteWithMpMemory(bool needMpMemory) : m_usingMpMemory(needMpMemory) {
+ExecuteWithMpMemory::~ExecuteWithMpMemory() {
+    if (m_switch) {
+        VOLT_DEBUG("Exiting UseMPmemory");
+        SynchronizedThreadLock::assumeLocalSiteContext();
+    }
+}
+
+void ExecuteWithMpMemory::run(std::function<void(void)> const&& fun, bool n) {
+    if (n) {
+        SynchronizedThreadLock::assumeMpMemoryContext();
+        try {
+            fun();
+        } catch (...) {
+            SynchronizedThreadLock::assumeLocalSiteContext();
+            throw;
+        }
+        SynchronizedThreadLock::assumeLocalSiteContext();
+    } else {
+        fun();
+    }
+}
+
+ConditionalExecuteWithMpMemory::ConditionalExecuteWithMpMemory(bool needMpMemory) :
+    m_usingMpMemory(needMpMemory) {
     if (m_usingMpMemory) {
         VOLT_DEBUG("Entering Conditional UseMPmemory");
         SynchronizedThreadLock::assumeMpMemoryContext();
@@ -45,7 +66,8 @@ ConditionalExecuteWithMpMemory::~ConditionalExecuteWithMpMemory() {
     }
 }
 
-ConditionalExecuteOutsideMpMemory::ConditionalExecuteOutsideMpMemory(bool haveMpMemory) : m_notUsingMpMemory(haveMpMemory) {
+ConditionalExecuteOutsideMpMemory::ConditionalExecuteOutsideMpMemory(bool haveMpMemory) :
+    m_notUsingMpMemory(haveMpMemory) {
     if (m_notUsingMpMemory) {
         VOLT_DEBUG("Breaking out of UseMPmemory");
         SynchronizedThreadLock::assumeLocalSiteContext();
@@ -56,6 +78,19 @@ ConditionalExecuteOutsideMpMemory::~ConditionalExecuteOutsideMpMemory() {
     if (m_notUsingMpMemory) {
         VOLT_DEBUG("Returning to UseMPmemory");
         SynchronizedThreadLock::assumeMpMemoryContext();
+    }
+}
+
+ConditionalSynchronizedExecuteWithMpMemory::ConditionalSynchronizedExecuteWithMpMemory(
+        bool needMpMemoryOnLowestThread, bool isLowestSite, std::function<void()> initiator)
+    : m_usingMpMemoryOnLowestThread(needMpMemoryOnLowestThread && isLowestSite),
+    m_okToExecute(!needMpMemoryOnLowestThread || m_usingMpMemoryOnLowestThread) {
+    if (needMpMemoryOnLowestThread &&
+            SynchronizedThreadLock::countDownGlobalTxnStartCount(isLowestSite)) {
+        VOLT_DEBUG("Entering Conditional Sync UseMPmemory");
+        SynchronizedThreadLock::assumeMpMemoryContext();
+        // This must be done in here to avoid a race with the non-MP path.
+        initiator();
     }
 }
 
@@ -77,8 +112,7 @@ ExecuteWithAllSitesMemory::ExecuteWithAllSitesMemory()
     vassert(SynchronizedThreadLock::isLowestSiteContext());
 }
 
-ExecuteWithAllSitesMemory::~ExecuteWithAllSitesMemory()
-{
+ExecuteWithAllSitesMemory::~ExecuteWithAllSitesMemory() {
     ExecutorContext::assignThreadLocals(m_engineLocals);
 #ifndef NDEBUG
     SynchronizedThreadLock::setUsingMpMemory(m_wasUsingMpMemory);
@@ -93,15 +127,35 @@ SharedEngineLocalsType::iterator ExecuteWithAllSitesMemory::end() {
     return SynchronizedThreadLock::s_activeEnginesByPartitionId.end();
 }
 
-ScopedReplicatedResourceLock::ScopedReplicatedResourceLock() {
-    SynchronizedThreadLock::lockReplicatedResource();
+ScopedReplicatedResourceLock::ScopedReplicatedResourceLock(bool f) : m_lock(f) {
+    if (m_lock) {
+        SynchronizedThreadLock::lockReplicatedResource();
+    }
 }
 
 ScopedReplicatedResourceLock::~ScopedReplicatedResourceLock() {
-    SynchronizedThreadLock::unlockReplicatedResource();
+    if (m_lock) {
+        SynchronizedThreadLock::unlockReplicatedResource();
+    }
 }
 
-ConditionalExecuteWithMpMemoryAndScopedResourceLock::ConditionalExecuteWithMpMemoryAndScopedResourceLock(bool needMpMemory) : m_usingMpMemory(needMpMemory) {
+void ScopedReplicatedResourceLock::run(std::function<void(void)> const&& fun, bool f) {
+    if (f) {
+        SynchronizedThreadLock::lockReplicatedResource();
+        try {
+            fun();
+        } catch (...) {
+            SynchronizedThreadLock::unlockReplicatedResource();
+            throw;
+        }
+        SynchronizedThreadLock::unlockReplicatedResource();
+    } else {
+        fun();
+    }
+}
+
+ConditionalExecuteWithMpMemoryAndScopedResourceLock::ConditionalExecuteWithMpMemoryAndScopedResourceLock(
+        bool needMpMemory) : m_usingMpMemory(needMpMemory) {
     if (m_usingMpMemory) {
         VOLT_DEBUG("Entering Conditional (locked) UseMPmemory");
         SynchronizedThreadLock::lockReplicatedResource();

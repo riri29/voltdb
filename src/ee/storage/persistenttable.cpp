@@ -51,12 +51,12 @@ namespace voltdb {
       return reinterpret_cast<T*>(memcpy(pool->allocate(partialSize), src, partialSize));
    }
 
-class SetAndRestorePendingDeleteFlag
-{
+class SetAndRestorePendingDeleteFlag {
+    TableTuple& m_target;
+    uint8_t m_restoreFlag;
 public:
     SetAndRestorePendingDeleteFlag(TableTuple& target) :
-            m_target(target), m_restoreFlag(*target.address())
-    {
+            m_target(target), m_restoreFlag(*target.address()) {
         vassert(!m_target.isPendingDelete());
         m_target.setPendingDeleteOnUndoReleaseTrue();
     }
@@ -64,10 +64,6 @@ public:
     ~SetAndRestorePendingDeleteFlag() {
         *(reinterpret_cast<char*>(m_target.address())) = m_restoreFlag;
     }
-
-private:
-    TableTuple& m_target;
-    uint8_t m_restoreFlag;
 };
 
 PersistentTable::PersistentTable(int partitionColumn,
@@ -629,8 +625,7 @@ bool PersistentTable::insertTupleIntoDeltaTable(TableTuple const& source) {
 
 TableTuple PersistentTable::createTuple(TableTuple const &source){
     TableTuple target(m_schema);
-    void *address = const_cast<void*>(reinterpret_cast<void const *> (allocator().allocate()));
-    target.move(address);
+    target.move(allocator().allocate());
     target.resetHeader();
     target.copyForPersistentInsert(source);
     return target;
@@ -885,6 +880,7 @@ void PersistentTable::updateTupleWithSpecificIndexes(
       std::vector<TableIndex*> const& indexesToUpdate, bool fallible, bool updateDRTimestamp, bool fromMigrate) {
     UndoQuantum* uq = NULL;
     char* oldTupleData = NULL;
+    bool const replicated = isReplicatedTable();
 
     /**
      * Check for index constraint violations.
@@ -911,7 +907,7 @@ void PersistentTable::updateTupleWithSpecificIndexes(
              */
            oldTupleData = partialCopyToPool(uq->getPool(), targetTupleToUpdate.address(), targetTupleToUpdate.tupleLength());
            // We assume that only fallible and undoable UPDATEs should be propagated to the EXPORT Shadow Stream
-           if (!isReplicatedTable() || m_executorContext->getPartitionId() == 0) {
+           if (! replicated || m_executorContext->getPartitionId() == 0) {
                if (isTableWithExportUpdateOld(m_tableType)) {
                    m_shadowStream->streamTuple(targetTupleToUpdate, ExportTupleStream::STREAM_ROW_TYPE::UPDATE_OLD);
                }
@@ -999,7 +995,7 @@ void PersistentTable::updateTupleWithSpecificIndexes(
     }
 
     if (m_schema->getUninlinedObjectColumnCount() != 0) {
-        if (tgtFinalizable) {              // occasionally skips finalization (but must skip when needed)
+        if (tgtFinalizable) {
             decreaseStringMemCount(targetTupleToUpdate.getNonInlinedMemorySizeForPersistentTable());
         }
         increaseStringMemCount(sourceTupleWithNewValues.getNonInlinedMemorySizeForPersistentTable());
@@ -1019,14 +1015,16 @@ void PersistentTable::updateTupleWithSpecificIndexes(
     std::vector<char*> newObjects;
 
     // this is the actual write of the new values
-    targetTupleToUpdate.copyForPersistentUpdate(sourceTupleWithNewValues, oldObjects, newObjects);
+    targetTupleToUpdate.copyForPersistentUpdate(
+            sourceTupleWithNewValues, oldObjects, newObjects);
 
     if (fromMigrate) {
         vassert(isTableWithMigrate(m_tableType) && m_shadowStream != nullptr);
         migratingAdd(getTableTxnId(), targetTupleToUpdate);
         // add to shadow stream if the table is partitioned or partition 0 for replicated table
-        if (!isReplicatedTable() || m_executorContext->getPartitionId() == 0) {
-            m_shadowStream->streamTuple(sourceTupleWithNewValues, ExportTupleStream::MIGRATE, doDRActions(drStream) ? drStream : nullptr);
+        if (! replicated || m_executorContext->getPartitionId() == 0) {
+            m_shadowStream->streamTuple(sourceTupleWithNewValues,
+                    ExportTupleStream::MIGRATE, doDRActions(drStream) ? drStream : nullptr);
         }
     }
 
@@ -1038,8 +1036,8 @@ void PersistentTable::updateTupleWithSpecificIndexes(
         UndoReleaseAction* undoAction = createInstanceFromPool<PersistentTableUndoUpdateAction>(
               *uq->getPool(), oldTupleData, targetTupleToUpdate.address(),
               oldObjects, newObjects, &m_surgeon, someIndexGotUpdated, fromMigrate);
-        SynchronizedThreadLock::addUndoAction(isReplicatedTable(), uq, undoAction);
-    } else {
+        SynchronizedThreadLock::addUndoAction(replicated, uq, undoAction);
+    } else if (tgtFinalizable) {              // occasionally skips finalization (but must skip when needed)
         // This is normally handled by the Undo Action's release (i.e. when there IS an Undo Action)
         // -- though maybe even that case should delegate memory management back to the PersistentTable
         // to keep the UndoAction stupid simple?
