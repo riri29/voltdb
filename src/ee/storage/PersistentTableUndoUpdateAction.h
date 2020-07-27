@@ -30,16 +30,15 @@ class PersistentTableUndoUpdateAction: public UndoReleaseAction {
     std::vector<char*> const m_oldUninlineableColumns;
     std::vector<char*> const m_newUninlineableColumns;
     bool const m_updateMigrate;
-    bool const m_finalizable;
 public:
     PersistentTableUndoUpdateAction(char* oldTuple, char* newTuple,
             std::vector<char*> const & oldObjects, std::vector<char*> const & newObjects,
             PersistentTableSurgeon *tableSurgeon,
-            bool revertIndexes, bool updateMigrate, bool finalizable) :
+            bool revertIndexes, bool updateMigrate) :
         m_oldTuple(oldTuple), m_newTuple(newTuple),
         m_tableSurgeon(tableSurgeon), m_revertIndexes(revertIndexes),
         m_oldUninlineableColumns(oldObjects), m_newUninlineableColumns(newObjects),
-        m_updateMigrate(updateMigrate), m_finalizable(finalizable) {}
+        m_updateMigrate(updateMigrate) {}
 
     /*
      * Undo whatever this undo action was created to undo. In this
@@ -48,7 +47,7 @@ public:
      */
     virtual void undo() {
         m_tableSurgeon->updateTupleForUndo(
-                m_newTuple, m_oldTuple, m_revertIndexes, m_updateMigrate, m_finalizable);
+                m_newTuple, m_oldTuple, m_revertIndexes, m_updateMigrate);
         // unconditionally release uninlined columns for the new
         // tuple of update
         NValue::freeObjectsFromTupleStorage(m_newUninlineableColumns);
@@ -60,9 +59,7 @@ public:
      * of the old tuple must be released.
      */
     virtual void release() {
-        if (m_finalizable) {
-            NValue::freeObjectsFromTupleStorage(m_oldUninlineableColumns);
-        }
+        NValue::freeObjectsFromTupleStorage(m_oldUninlineableColumns);
     }
     virtual ~PersistentTableUndoUpdateAction() { }
 };

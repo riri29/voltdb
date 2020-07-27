@@ -84,6 +84,7 @@ namespace voltdb {
 #define PENDING_DELETE_ON_UNDO_RELEASE_MASK      8
 #define INLINED_NONVOLATILE_MASK                16
 #define NONINLINED_VOLATILE_MASK                32
+#define DEBUG_SHALLOW_COPY_MASK                 64
 
 class TableColumn;
 class TupleIterator;
@@ -374,6 +375,10 @@ public:
         return *(reinterpret_cast<const char*> (m_data)) & PENDING_DELETE_ON_UNDO_RELEASE_MASK;
     }
 
+    inline bool isShallowCopy() const {
+        return *(reinterpret_cast<const char*> (m_data)) & DEBUG_SHALLOW_COPY_MASK;
+    }
+
     /** Is variable-length data stored inside the tuple volatile (could data
         change, or could storage be freed)? */
     inline bool inlinedDataIsVolatile() const {
@@ -585,6 +590,10 @@ private:
         tuple as not subject to change or deallocation. */
     inline void setNonInlinedDataIsVolatileFalse() {
         *(reinterpret_cast<char*> (m_data)) &= static_cast<char>(~NONINLINED_VOLATILE_MASK);
+    }
+
+    inline void setShallowCopyDst() {
+        *(reinterpret_cast<char*> (m_data)) &= static_cast<char>(~DEBUG_SHALLOW_COPY_MASK);
     }
 
     inline bool inferVolatility(const TupleSchema::ColumnInfo *colInfo) const {

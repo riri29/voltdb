@@ -110,6 +110,7 @@ inline void PersistentTable::allocatorFinalize(void const* p) {
     checkContext("Cleaning");
     TableTuple tuple(m_schema);
     tuple.move(const_cast<void*>(p));
+    assert(! tuple.isShallowCopy());
     decreaseStringMemCount(tuple.getNonInlinedMemorySizeForPersistentTable());
     tuple.freeObjectColumns();
 }
@@ -638,8 +639,10 @@ void PersistentTable::compact(void* dst, void const* src,
     // lies outside frozen region.
     m_dstTuple.move(dst);
     m_srcTuple.move(const_cast<void*>(src));
+    bool shallow = false;
     if (m_schema->getUninlinedObjectColumnCount() == 0 || ! allocator().frozen()) {
         memcpy(dst, src, m_tupleLength);
+        shallow = true;
     } else {           // NOTE: finalization of dst is handled by DelayedRemover::finalize()
         switch (state) {
             case storage::CompactingChunks::compact_state::src_frozen:
@@ -655,6 +658,7 @@ void PersistentTable::compact(void* dst, void const* src,
                     // When deleted tuple already had changes
                     // tracked before, mem copy suffice
                     memcpy(dst, src, m_tupleLength);
+                    shallow = true;
                 } else {
                     // Otherwise, deep copy needed for compaction. Cannot
                     // finalize either address
@@ -663,7 +667,11 @@ void PersistentTable::compact(void* dst, void const* src,
                 break;
             case storage::CompactingChunks::compact_state::unfrozen:
                 memcpy(dst, src, m_tupleLength);
+                shallow = true;
         }
+    }
+    if (shallow) {
+        m_dstTuple.setShallowCopyDst();
     }
     vassert(!m_srcTuple.isPendingDeleteOnUndoRelease());
 
@@ -951,8 +959,9 @@ void PersistentTable::updateTupleWithSpecificIndexes(
                      *uq->getPool(), drStream, drMark, rowCostForDRRecord(DR_RECORD_UPDATE)));
         }
     }
-    bool const tgtFinalizable = m_tableStreamer == nullptr ||
-        ! m_tableStreamer->notifyTupleUpdate(targetTupleToUpdate);
+    if (m_tableStreamer != nullptr) {
+        m_tableStreamer->notifyTupleUpdate(targetTupleToUpdate);
+    }
 
     /**
      * Remove the current tuple from any indexes.
@@ -995,9 +1004,8 @@ void PersistentTable::updateTupleWithSpecificIndexes(
     }
 
     if (m_schema->getUninlinedObjectColumnCount() != 0) {
-        if (tgtFinalizable) {
-            decreaseStringMemCount(targetTupleToUpdate.getNonInlinedMemorySizeForPersistentTable());
-        }
+        assert(! targetTupleToUpdate.isShallowCopy());
+        decreaseStringMemCount(targetTupleToUpdate.getNonInlinedMemorySizeForPersistentTable());
         increaseStringMemCount(sourceTupleWithNewValues.getNonInlinedMemorySizeForPersistentTable());
     }
 
@@ -1036,8 +1044,8 @@ void PersistentTable::updateTupleWithSpecificIndexes(
         SynchronizedThreadLock::addUndoAction(replicated, uq,
                 createInstanceFromPool<PersistentTableUndoUpdateAction>(
                     *uq->getPool(), oldTupleData, targetTupleToUpdate.address(),
-                    oldObjects, newObjects, &m_surgeon, someIndexGotUpdated, fromMigrate, tgtFinalizable));
-    } else if (tgtFinalizable) {              // occasionally skips finalization (but must skip when needed)
+                    oldObjects, newObjects, &m_surgeon, someIndexGotUpdated, fromMigrate));
+    } else {              // occasionally skips finalization (but must skip when needed)
         // This is normally handled by the Undo Action's release (i.e. when there IS an Undo Action)
         // -- though maybe even that case should delegate memory management back to the PersistentTable
         // to keep the UndoAction stupid simple?
@@ -1083,7 +1091,7 @@ void PersistentTable::updateTupleWithSpecificIndexes(
  * Then insert the new (or rather, old) value back into the indexes.
  */
 void PersistentTable::updateTupleForUndo(char* tupleWithUnwantedValues,
-        char* sourceTupleDataWithNewValues, bool revertIndexes, bool fromMigrate, bool finalizable) {
+        char* sourceTupleDataWithNewValues, bool revertIndexes, bool fromMigrate) {
 
     TableTuple targetTupleToUpdate(tupleWithUnwantedValues, m_schema);
     TableTuple sourceTupleWithNewValues(sourceTupleDataWithNewValues, m_schema);
@@ -1098,7 +1106,8 @@ void PersistentTable::updateTupleForUndo(char* tupleWithUnwantedValues,
         }
     }
 
-    if (finalizable && m_schema->getUninlinedObjectColumnCount() != 0) {
+    if (m_schema->getUninlinedObjectColumnCount() != 0) {
+        assert(! targetTupleToUpdate.isShallowCopy());
         decreaseStringMemCount(targetTupleToUpdate.getNonInlinedMemorySizeForPersistentTable());
         increaseStringMemCount(sourceTupleWithNewValues.getNonInlinedMemorySizeForPersistentTable());
     }

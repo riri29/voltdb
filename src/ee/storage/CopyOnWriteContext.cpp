@@ -173,7 +173,8 @@ int64_t CopyOnWriteContext::getRemainingCount() {
 }
 
 bool CopyOnWriteContext::notifyTupleUpdate(TableTuple &tuple) {
-    return m_allocator.template update<storage::truth>(tuple.address());
+    m_allocator.template update<storage::truth>(tuple.address());
+    return false;
 }
 
 }

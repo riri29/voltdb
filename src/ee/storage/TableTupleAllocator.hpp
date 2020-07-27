@@ -821,12 +821,14 @@ namespace voltdb {
         template<typename Alloc, typename Trait,
             typename = typename enable_if<is_chunks<Alloc>::value && is_base_of<BaseHistoryRetainTrait, Trait>::value>::type>
         class TxnPreHook : private Trait {
-            enum class change_type : char {deletes, update, deletes_update};
             using map_type = typename Collections<collections_type>::template
-                map<void const*, pair<change_type, void const*>>;
+                map<void const*, void const*>;
+            using mmap_type = typename Collections<collections_type>::template
+                map<void const*, typename map_type::const_iterator>;
             static FinalizerAndCopier const EMPTY_FINALIZER;
             bool m_recording = false;            // in snapshot process?
             map_type m_changes{};                // addr in persistent storage under change => addr storing before-change content
+            mmap_type m_updates{};
             Alloc m_changeStore;
             FinalizerAndCopier const& m_finalizerAndCopier;
         public:
@@ -839,20 +841,13 @@ namespace voltdb {
             ~TxnPreHook();
             void freeze();
             void thaw();
-            // NOTE: the deletion event need to happen before
-            // calling add(...), unlike insertion/update.
-            // \return true when: finalizer is non-trivial,
-            // target addr is in frozen region, and had been tracked
-            // before as deleted; in which case it now become
-            // tracked as updated, and for this update instance,
-            // the addr before update **cannot** be finalized.
+            bool changed(void const*) const noexcept;             // tracked by hook memory
             template<typename IteratorObserver,
                 typename = typename enable_if<IteratorObserver::is_iterator_observer::value>::type>
-            bool addForUpdate(void const*, IteratorObserver&);
+            void addForUpdate(void const*, IteratorObserver&);
             template<typename IteratorObserver,
                 typename = typename enable_if<IteratorObserver::is_iterator_observer::value>::type>
             void addForDelete(void const*, IteratorObserver&);
-            bool changed(void const*) const noexcept;              // change tracked?
             void const* operator()(void const*) const;             // revert history at this place!
             void release(void const*);                             // local memory clean-up. Client need to call this upon having done what is needed to record current address in snapshot.
         };
@@ -897,7 +892,7 @@ namespace voltdb {
              * \return see Hook::addForUpdate
              * NOTE: must be called prior to any memcpy/deep copy operations from caller
              */
-            template<typename Tag> bool update(void*);
+            template<typename Tag> void update(void*);
             /**
              * Light weight free() operation at arbitrary
              * position
