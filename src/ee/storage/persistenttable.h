@@ -73,10 +73,8 @@ public:
     TBMap& getData() const;
     PersistentTable& getTable();
     void insertTupleForUndo(char* tuple);
-    void updateTupleForUndo(char* targetTupleToUpdate,
-                            char* sourceTupleWithNewValues,
-                            bool revertIndexes,
-                            bool fromMigrate);
+    void updateTupleForUndo(char* targetTupleToUpdate, char* sourceTupleWithNewValues,
+            bool revertIndexes, bool fromMigrate, bool finalizable);
     // The fallible flag is used to denote a change to a persistent table
     // which is part of a long transaction that has been vetted and can
     // never fail (e.g. violate a constraint).
@@ -637,10 +635,8 @@ private:
     void insertTupleCommon(TableTuple const& source, TableTuple& target,
             bool fallible, bool shouldDRStream = true, bool delayTupleDelete = false);
 
-    void updateTupleForUndo(char* targetTupleToUpdate,
-                            char* sourceTupleWithNewValues,
-                            bool revertIndexes,
-                            bool fromMigrate);
+    void updateTupleForUndo(char* targetTupleToUpdate, char* sourceTupleWithNewValues,
+            bool revertIndexes, bool fromMigrate, bool finalizable);
 
     void deleteTupleForUndo(char* tupleData, bool skipLookup = false);
 
@@ -827,11 +823,11 @@ inline void PersistentTableSurgeon::activateSnapshot(TableStreamType streamType)
     m_table.activateSnapshot(streamType);
 }
 
-inline void PersistentTableSurgeon::updateTupleForUndo(char* targetTupleToUpdate,
-                                                       char* sourceTupleWithNewValues,
-                                                       bool revertIndexes,
-                                                       bool fromMigrate) {
-    m_table.updateTupleForUndo(targetTupleToUpdate, sourceTupleWithNewValues, revertIndexes, fromMigrate);
+inline void PersistentTableSurgeon::updateTupleForUndo(
+        char* targetTupleToUpdate, char* sourceTupleWithNewValues,
+        bool revertIndexes, bool fromMigrate, bool finalizable) {
+    m_table.updateTupleForUndo(targetTupleToUpdate, sourceTupleWithNewValues,
+            revertIndexes, fromMigrate, finalizable);
 }
 
 inline void PersistentTableSurgeon::deleteTuple(TableTuple& tuple, bool fallible,  bool removeMigratingIndex) {

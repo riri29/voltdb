@@ -1033,10 +1033,10 @@ void PersistentTable::updateTupleWithSpecificIndexes(
          * Create and register an undo action with copies of the "before" and "after" tuple storage
          * and the "before" and "after" object pointers for non-inlined columns that changed.
          */
-        UndoReleaseAction* undoAction = createInstanceFromPool<PersistentTableUndoUpdateAction>(
-              *uq->getPool(), oldTupleData, targetTupleToUpdate.address(),
-              oldObjects, newObjects, &m_surgeon, someIndexGotUpdated, fromMigrate);
-        SynchronizedThreadLock::addUndoAction(replicated, uq, undoAction);
+        SynchronizedThreadLock::addUndoAction(replicated, uq,
+                createInstanceFromPool<PersistentTableUndoUpdateAction>(
+                    *uq->getPool(), oldTupleData, targetTupleToUpdate.address(),
+                    oldObjects, newObjects, &m_surgeon, someIndexGotUpdated, fromMigrate, tgtFinalizable));
     } else if (tgtFinalizable) {              // occasionally skips finalization (but must skip when needed)
         // This is normally handled by the Undo Action's release (i.e. when there IS an Undo Action)
         // -- though maybe even that case should delegate memory management back to the PersistentTable
@@ -1083,9 +1083,7 @@ void PersistentTable::updateTupleWithSpecificIndexes(
  * Then insert the new (or rather, old) value back into the indexes.
  */
 void PersistentTable::updateTupleForUndo(char* tupleWithUnwantedValues,
-                                         char* sourceTupleDataWithNewValues,
-                                         bool revertIndexes,
-                                         bool fromMigrate) {
+        char* sourceTupleDataWithNewValues, bool revertIndexes, bool fromMigrate, bool finalizable) {
 
     TableTuple targetTupleToUpdate(tupleWithUnwantedValues, m_schema);
     TableTuple sourceTupleWithNewValues(sourceTupleDataWithNewValues, m_schema);
@@ -1100,7 +1098,7 @@ void PersistentTable::updateTupleForUndo(char* tupleWithUnwantedValues,
         }
     }
 
-    if (m_schema->getUninlinedObjectColumnCount() != 0) {
+    if (finalizable && m_schema->getUninlinedObjectColumnCount() != 0) {
         decreaseStringMemCount(targetTupleToUpdate.getNonInlinedMemorySizeForPersistentTable());
         increaseStringMemCount(sourceTupleWithNewValues.getNonInlinedMemorySizeForPersistentTable());
     }
