@@ -1908,9 +1908,19 @@ public class RealVoltDB implements VoltDBInterface, RestoreAgent.Callback, HostM
                 }
 
                 //create a blocker for repair if this is a MP leader and partition leaders change
-                if (m_leaderAppointer.isLeader() && m_cartographer.hasPartitionMastersOnHosts(failedHosts)) {
-                    VoltZK.createActionBlocker(m_messenger.getZK(), VoltZK.mpRepairInProgress,
-                            CreateMode.EPHEMERAL, hostLog, "MP Repair");
+                if (m_leaderAppointer.isLeader()) {
+                    if ( m_cartographer.hasPartitionMastersOnHosts(failedHosts)) {
+                        VoltZK.createActionBlocker(m_messenger.getZK(), VoltZK.mpRepairInProgress,
+                                CreateMode.EPHEMERAL, hostLog, "MP Repair");
+                    } else {
+                        // When the last partition leader on a host is migrated away and there is an MP transaction which depends on
+                        // the partition leader, the transaction can be deadlocked if the host is shutdown. Since the host does not have
+                        // any partition leaders, its shutdown won't trigger transaction repair process to beak up the dependency.
+                        // Here in a hacked way, update the partition master node on ZooKeeper without changing master assignment to trigger
+                        // ZooKeeper callback and let the babysitter thread go through the repair process, break any dependencies on failed hosts
+                        // for rerouted transactions.
+                        VoltZK.addTxnRestartTrigger(m_messenger.getZK());
+                    }
                 }
 
                 // First check to make sure that the cluster still is viable before
@@ -1965,9 +1975,6 @@ public class RealVoltDB implements VoltDBInterface, RestoreAgent.Callback, HostM
                 // let the client interface know host(s) have failed to clean up any outstanding work
                 // especially non-transactional work
                 m_clientInterface.handleFailedHosts(failedHosts);
-                if (m_leaderAppointer.isLeader()) {
-                    m_cartographer.poisonTransactions();
-                }
                 if (m_elasticService != null) {
                     m_elasticService.hostsFailed(failedHosts);
                 }

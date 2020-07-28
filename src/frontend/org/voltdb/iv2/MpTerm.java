@@ -30,7 +30,6 @@ import org.voltcore.utils.CoreUtils;
 import org.voltdb.VoltDB;
 import org.voltdb.VoltZK;
 import org.voltdb.iv2.LeaderCache.LeaderCallBackInfo;
-
 import com.google_voltpatches.common.base.Supplier;
 import com.google_voltpatches.common.collect.ImmutableMap;
 import com.google_voltpatches.common.collect.ImmutableSortedSet;
@@ -43,10 +42,34 @@ public class MpTerm implements Term
     private final InitiatorMailbox m_mailbox;
     private final ZooKeeper m_zk;
     private volatile SortedSet<Long> m_knownLeaders = ImmutableSortedSet.of();
+    private  HashMap<Integer, Long> m_cacheCopy = new HashMap<Integer, Long>();
+    private boolean m_lastUpdateByMigration;
+    public static enum RepairType {
+        NORMAL(0),
+        MIGRATE(1),
+        TXN_RESTART(2),
+        SKIP_TXN_RESTART(4);
+        final int type;
+        RepairType(int type) {
+            this.type = type;
+        }
+        int get() {
+            return type;
+        }
+        public boolean isMigrate() {
+            return type == MIGRATE.get() || type == SKIP_TXN_RESTART.get();
+        }
+        public boolean isTxnRestart() {
+            return type == TXN_RESTART.get();
+        }
+        public boolean isSkipTxnRestart() {
+            return type == SKIP_TXN_RESTART.get();
+        }
+    }
 
     // Initialized in start() -- when the term begins.
     protected LeaderCache m_leaderCache;
-
+    private LeaderCache m_txnTriggerCache;
     // runs on the babysitter thread when a replica changes.
     // simply forward the notice to the initiator mailbox; it controls
     // the Term processing.
@@ -59,15 +82,15 @@ public class MpTerm implements Term
         public void run(ImmutableMap<Integer, LeaderCallBackInfo> cache)
         {
             ImmutableSortedSet.Builder<Long> builder = ImmutableSortedSet.naturalOrder();
-            HashMap<Integer, Long> cacheCopy = new HashMap<Integer, Long>();
+            m_cacheCopy.clear();
             boolean migratePartitionLeaderRequested = false;
             for (Entry<Integer, LeaderCallBackInfo> e : cache.entrySet()) {
                 long hsid = e.getValue().m_HSId;
                 builder.add(hsid);
-                cacheCopy.put(e.getKey(), hsid);
+                m_cacheCopy.put(e.getKey(), hsid);
 
                 //The master change is triggered via @MigratePartitionLeader
-                if (e.getValue().isMigrateRequested() && !(m_knownLeaders.contains(hsid))) {
+                if (e.getValue().m_isMigratePartitionLeaderRequested && !(m_knownLeaders.contains(hsid))) {
                     migratePartitionLeaderRequested = true;
                 }
             }
@@ -76,13 +99,23 @@ public class MpTerm implements Term
                 tmLog.debug(m_whoami + "LeaderCache change updating leader list to: "
                         + CoreUtils.hsIdCollectionToString(updatedLeaders) + ". MigratePartitionLeader:" + migratePartitionLeaderRequested);
             }
-            if (m_knownLeaders.equals(updatedLeaders)) {
-                migratePartitionLeaderRequested = true;
-            }
             m_knownLeaders = updatedLeaders;
+            RepairType repairType = RepairType.NORMAL;
+            if (migratePartitionLeaderRequested) {
+                repairType = RepairType.MIGRATE;
+            }
+            m_lastUpdateByMigration = migratePartitionLeaderRequested;
+            ((MpInitiatorMailbox)m_mailbox).updateReplicas(new ArrayList<Long>(m_knownLeaders), m_cacheCopy, repairType);
+        }
+    };
 
-            ((MpInitiatorMailbox)m_mailbox).updateReplicas(new ArrayList<Long>(m_knownLeaders), cacheCopy,
-                    migratePartitionLeaderRequested);
+    LeaderCache.Callback m_txnRestartHandler = new LeaderCache.Callback() {
+        @Override
+        public void run(ImmutableMap<Integer, LeaderCallBackInfo> cache) {
+            if (cache == null || cache.isEmpty() || !m_lastUpdateByMigration) {
+                return;
+            }
+            ((MpInitiatorMailbox)m_mailbox).updateReplicas(new ArrayList<Long>(m_knownLeaders), m_cacheCopy, RepairType.TXN_RESTART);
         }
     };
 
@@ -107,6 +140,9 @@ public class MpTerm implements Term
         try {
             m_leaderCache = new LeaderCache(m_zk, "MpTerm-iv2masters", VoltZK.iv2masters, m_leadersChangeHandler);
             m_leaderCache.start(true);
+            m_txnTriggerCache = new LeaderCache(m_zk, "MpTerm-txn-restart",
+                    VoltZK.trigger_txn_restart, m_txnRestartHandler);
+            m_txnTriggerCache.start(true);
         }
         catch (ExecutionException ee) {
             VoltDB.crashLocalVoltDB("Unable to create babysitter starting term.", true, ee);
@@ -122,7 +158,13 @@ public class MpTerm implements Term
             try {
                 m_leaderCache.shutdown();
             } catch (InterruptedException e) {
-                // We're shutting down...this may jsut be faster.
+                // We're shutting down...this may just be faster.
+            }
+        }
+        if (m_txnTriggerCache != null) {
+            try {
+                m_txnTriggerCache.shutdown();
+            } catch (InterruptedException e) {
             }
         }
     }

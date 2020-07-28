@@ -248,6 +248,8 @@ public class VoltZK {
 
     public static final String hashMismatchedReplicas = "/db/mismatched";
 
+    public static final String trigger_txn_restart = "/db/restart";
+
     // Persistent nodes (mostly directories) to create on startup
     public static final String[] ZK_HIERARCHY = {
             root,
@@ -270,7 +272,8 @@ public class VoltZK {
             actionLock,
             hashMismatchedReplicas,
             catalogbytes,
-            nt_mailboxes
+            nt_mailboxes,
+            trigger_txn_restart
     };
 
     /**
@@ -727,6 +730,28 @@ public class VoltZK {
         } catch (KeeperException.NoNodeException e) {
         } catch (Exception e) {
             VoltDB.crashLocalVoltDB("Unable to delete hash mismatched replica info", true, e);
+        }
+    }
+
+    public static void addTxnRestartTrigger(ZooKeeper zk) {
+        try {
+            String id = Long.toString(Long.MAX_VALUE) + "/" + Long.toString(Long.MAX_VALUE);
+            zk.create(ZKUtil.joinZKPath(trigger_txn_restart, "restart"),
+                    id.getBytes(Charsets.UTF_8),
+                    Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
+        } catch (KeeperException.NodeExistsException e) {
+        } catch (Exception e) {
+            VoltDB.crashLocalVoltDB("Unable to store trsansaction restart trigger info", true, e);
+        }
+    }
+
+    public static void removeTxnRestartTrigger(ZooKeeper zk) {
+        try {
+            final String path = ZKUtil.joinZKPath(trigger_txn_restart, "restart");
+            zk.delete(path, -1);
+        } catch (KeeperException.NoNodeException e) {
+        } catch (Exception e) {
+            VoltDB.crashLocalVoltDB("Unable to delete trsansaction restart trigger info", true, e);
         }
     }
 

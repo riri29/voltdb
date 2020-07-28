@@ -112,7 +112,7 @@ public class SpInitiator extends BaseInitiator<SpScheduler> implements Promotabl
                     }
                     boolean reinstate = reinstateAsLeader(info);
                     if (!m_promoted || reinstate) {
-                        acceptPromotionImpl(info.m_lastHSId, (reinstate || info.isMigrateRequested()));
+                        acceptPromotionImpl(info.m_lastHSId, (reinstate || info.m_isMigratePartitionLeaderRequested));
                         m_promoted = true;
                     }
                     break;
@@ -147,7 +147,7 @@ public class SpInitiator extends BaseInitiator<SpScheduler> implements Promotabl
                 !m_scheduler.m_isLeader) {
             for (Entry<Integer, LeaderCallBackInfo> entry: cache.entrySet()) {
                 LeaderCallBackInfo info = entry.getValue();
-                if (!info.isMigrateRequested() ||
+                if (!info.m_isMigratePartitionLeaderRequested ||
                         m_messenger.getLiveHostIds().contains(CoreUtils.getHostIdFromHSId(info.m_HSId))) {
                     continue;
                 }

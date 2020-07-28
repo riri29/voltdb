@@ -26,6 +26,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import org.voltcore.logging.VoltLogger;
 import org.voltcore.messaging.Mailbox;
@@ -780,14 +781,7 @@ public class MpTransactionState extends TransactionState
             return false;
         }
 
-        // The repair process should be triggered with no masters changed.
-        List<Long> copied = Lists.newArrayList(m_masterHSIds.values());
-        copied.removeAll(masters);
-        if (!copied.isEmpty()) {
-            return false;
-        }
-
-        Set<Integer> hostIds = VoltDB.instance().getHostMessenger().getLiveHostIds();
+        Set<Integer> hostIds = masters.stream().map(l->CoreUtils.getHostIdFromHSId(l)).collect(Collectors.toSet());
         for (Set<Long> hsids : m_remoteDeps.values()) {
             for (Long hsid : hsids) {
                 if (!hostIds.contains(CoreUtils.getHostIdFromHSId(hsid))) {
