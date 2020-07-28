@@ -87,7 +87,7 @@ public:
                                                        m_tableSchemaAllowNull);
 
         TableIndexScheme indexScheme("primaryKeyIndex",
-                                     BALANCED_TREE_INDEX,
+                                     TableIndexType::balanced_tree,
                                      m_primaryKeyIndexColumns,
                                      TableIndex::simplyIndexColumns(),
                                      true, true, false, m_tableSchema);

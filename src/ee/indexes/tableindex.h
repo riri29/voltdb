@@ -67,7 +67,7 @@ class AbstractExpression;
  */
 struct TableIndexScheme {
     TableIndexScheme() {
-        tupleSchema = NULL;
+        tupleSchema = nullptr;
     }
 
     TableIndexScheme(const std::string &a_name,
@@ -106,16 +106,13 @@ struct TableIndexScheme {
       type(a_type),
       columnIndices(a_columnIndices),
       indexedExpressions(a_indexedExpressions),
-      predicate(NULL),
       allColumnIndices(a_columnIndices),
       unique(a_unique),
       countable(a_countable),
       migrating(migrating),
       expressionsAsText(),
       predicateAsText(),
-      tupleSchema(a_tupleSchema)
-    {
-    }
+      tupleSchema(a_tupleSchema) { }
 
     TableIndexScheme(const TableIndexScheme& other) :
       name(other.name),
@@ -129,11 +126,9 @@ struct TableIndexScheme {
       migrating(other.migrating),
       expressionsAsText(other.expressionsAsText),
       predicateAsText(other.predicateAsText),
-      tupleSchema(other.tupleSchema)
-    {}
+      tupleSchema(other.tupleSchema) {}
 
-    TableIndexScheme& operator=(const TableIndexScheme& other)
-    {
+    TableIndexScheme& operator=(const TableIndexScheme& other) {
         name = other.name;
         type = other.type;
         columnIndices = other.columnIndices;
@@ -159,7 +154,7 @@ struct TableIndexScheme {
     TableIndexType type;
     std::vector<int32_t> columnIndices;
     std::vector<AbstractExpression*> indexedExpressions;
-    AbstractExpression* predicate;
+    AbstractExpression* predicate = nullptr;
     // For partial indexes this vector contains index columns indicies plus
     // columns that are part of the index predicate
     std::vector<int32_t> allColumnIndices;
@@ -173,18 +168,13 @@ struct TableIndexScheme {
 
 struct IndexCursor {
 public:
-    IndexCursor(const TupleSchema * schema) :
-        m_forward(true), m_match(schema)
-    {
+    IndexCursor(const TupleSchema * schema) : m_match(schema) {
         memset(m_keyIter, 0, sizeof(m_keyIter));
         memset(m_keyEndIter, 0, sizeof(m_keyEndIter));
     }
 
-    ~IndexCursor() {
-    };
-
     // iteration stuff
-    bool m_forward;  // for tree index ONLY
+    bool m_forward = true;  // for tree index ONLY
     TableTuple m_match;
     char m_keyIter[16];
     char m_keyEndIter[16]; // for multiple tree index ONLY

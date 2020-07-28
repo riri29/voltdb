@@ -742,6 +742,10 @@ class NValue {
         }
     }
 
+    const int32_t& getInteger() const {
+        vassert(getValueType() == ValueType::tINTEGER);
+        return *reinterpret_cast<const int32_t*>(m_data);
+    }
 private:
     /*
      * Private methods are private for a reason. Don't expose the raw
@@ -933,11 +937,6 @@ private:
     int16_t& getSmallInt() {
         vassert(getValueType() == ValueType::tSMALLINT);
         return *reinterpret_cast<int16_t*>(m_data);
-    }
-
-    const int32_t& getInteger() const {
-        vassert(getValueType() == ValueType::tINTEGER);
-        return *reinterpret_cast<const int32_t*>(m_data);
     }
 
     int32_t& getInteger() {

@@ -193,7 +193,7 @@ TEST_F(ConstraintTest, UniqueOneColumnNotNull) {
 
     std::vector<int> pkey_column_indices;
     pkey_column_indices.push_back(0);
-    TableIndexScheme pkey("idx_pkey", BALANCED_TREE_INDEX,
+    TableIndexScheme pkey("idx_pkey", TableIndexType::balanced_tree,
             pkey_column_indices, TableIndex::simplyIndexColumns(),
             true, true, false, NULL);
 
@@ -253,7 +253,7 @@ TEST_F(ConstraintTest, UniqueOneColumnAllowNull) {
 
     std::vector<int> pkey_column_indices;
     pkey_column_indices.push_back(0);
-    TableIndexScheme pkey("idx_pkey", BALANCED_TREE_INDEX,
+    TableIndexScheme pkey("idx_pkey", TableIndexType::balanced_tree,
                                   pkey_column_indices, TableIndex::simplyIndexColumns(),
                                   true, true, false, NULL);
 
@@ -311,7 +311,7 @@ TEST_F(ConstraintTest, UniqueTwoColumnNotNull) {
     pkey_column_indices.push_back(0);
     pkey_column_indices.push_back(2);
     pkey_column_indices.push_back(3);
-    TableIndexScheme pkey("idx_pkey", BALANCED_TREE_INDEX,
+    TableIndexScheme pkey("idx_pkey", TableIndexType::balanced_tree,
                           pkey_column_indices, TableIndex::simplyIndexColumns(),
                           true, true, false, NULL);
 
@@ -357,7 +357,7 @@ TEST_F(ConstraintTest, UniqueTwoColumnAllowNull) {
     pkey_column_indices.push_back(0);
     pkey_column_indices.push_back(2);
     pkey_column_indices.push_back(3);
-    TableIndexScheme pkey("idx_pkey", BALANCED_TREE_INDEX,
+    TableIndexScheme pkey("idx_pkey", TableIndexType::balanced_tree,
                           pkey_column_indices, TableIndex::simplyIndexColumns(),
                           true, true, false, NULL);
 

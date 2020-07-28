@@ -35,7 +35,7 @@ PersistentTable* SystemTableFactory::createTable(char const *name, TupleSchema *
 void SystemTableFactory::addIndex(PersistentTable *table, const std::string name, const std::vector<int32_t> &columns,
         bool unique, bool primary, AbstractExpression* predicate) {
     auto indexedExpressions = TableIndex::simplyIndexColumns();
-    TableIndexScheme scheme(name, BALANCED_TREE_INDEX, columns, indexedExpressions, predicate, unique, false, false,
+    TableIndexScheme scheme(name, TableIndexType::balanced_tree, columns, indexedExpressions, predicate, unique, false, false,
             "", "", table->schema());
 
     TableIndex *index = TableIndexFactory::getInstance(scheme);

@@ -365,11 +365,11 @@ enum QuantifierType {
 // ------------------------------------------------------------------
 // Table Index Types
 // ------------------------------------------------------------------
-enum TableIndexType {
-    BALANCED_TREE_INDEX     = 1,
-    HASH_TABLE_INDEX        = 2,
-    BTREE_INDEX             = 3, // unused
-    COVERING_CELL_INDEX     = 4
+enum class TableIndexType : char {
+    balanced_tree = 1,
+    hash_table,
+    btree, // unused
+    covering_cell
 };
 
 // ------------------------------------------------------------------

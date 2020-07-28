@@ -431,8 +431,9 @@ public:
         return m_dataStorage->chunks() * m_tableAllocationSize;
     }
 
-    int visibleTupleCount() const {
+    size_t visibleTupleCount() const {
         vassert(m_dataStorage != nullptr);
+        vassert(m_dataStorage->size() >= m_invisibleTuplesPendingDeleteCount);
         return m_dataStorage->size() - m_invisibleTuplesPendingDeleteCount;
     }
 

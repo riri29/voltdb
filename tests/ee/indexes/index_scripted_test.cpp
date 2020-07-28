@@ -210,49 +210,49 @@ void setNewCurrent(const char *testName,
         TableIndex *index;
 
         if (strcmp(indexName, kMultiIntsHash) == 0) {
-            TableIndexScheme scheme(indexName, HASH_TABLE_INDEX,
+            TableIndexScheme scheme(indexName, TableIndexType::hash_table,
                                             columnIndices, TableIndex::simplyIndexColumns(),
                                             false, false, false, schema);
             index = TableIndexFactory::getInstance(scheme);
         }
         else if (strcmp(indexName, kMultiIntsTree) == 0) {
-            TableIndexScheme scheme(indexName, BALANCED_TREE_INDEX,
+            TableIndexScheme scheme(indexName, TableIndexType::balanced_tree,
                                             columnIndices, TableIndex::simplyIndexColumns(),
                                             false, true, false, schema);
             index = TableIndexFactory::getInstance(scheme);
         }
         else if (strcmp(indexName, kMultiGenericHash) == 0) {
-            TableIndexScheme scheme(indexName, HASH_TABLE_INDEX,
+            TableIndexScheme scheme(indexName, TableIndexType::hash_table,
                                             columnIndices, TableIndex::simplyIndexColumns(),
                                             false, false, false, schema);
             index = TableIndexFactory::getInstance(scheme);
         }
         else if (strcmp(indexName, kMultiGenericTree) == 0) {
-            TableIndexScheme scheme(indexName, BALANCED_TREE_INDEX,
+            TableIndexScheme scheme(indexName, TableIndexType::balanced_tree,
                                             columnIndices, TableIndex::simplyIndexColumns(),
                                             false, true, false, schema);
             index = TableIndexFactory::getInstance(scheme);
         }
         else if (strcmp(indexName, kUniqueIntsHash) == 0) {
-            TableIndexScheme scheme(indexName, HASH_TABLE_INDEX,
+            TableIndexScheme scheme(indexName, TableIndexType::hash_table,
                                             columnIndices, TableIndex::simplyIndexColumns(),
                                             true, false, false, schema);
             index = TableIndexFactory::getInstance(scheme);
         }
         else if (strcmp(indexName, kUniqueIntsTree) == 0) {
-            TableIndexScheme scheme(indexName, BALANCED_TREE_INDEX,
+            TableIndexScheme scheme(indexName, TableIndexType::balanced_tree,
                                             columnIndices, TableIndex::simplyIndexColumns(),
                                             true, true, false, schema);
             index = TableIndexFactory::getInstance(scheme);
         }
         else if (strcmp(indexName, kUniqueGenericHash) == 0) {
-            TableIndexScheme scheme(indexName, HASH_TABLE_INDEX,
+            TableIndexScheme scheme(indexName, TableIndexType::hash_table,
                                             columnIndices, TableIndex::simplyIndexColumns(),
                                             true, false, false, schema);
             index = TableIndexFactory::getInstance(scheme);
         }
         else if (strcmp(indexName, kUniqueGenericTree) == 0) {
-            TableIndexScheme scheme(indexName, BALANCED_TREE_INDEX,
+            TableIndexScheme scheme(indexName, TableIndexType::balanced_tree,
                                             columnIndices, TableIndex::simplyIndexColumns(),
                                             true, true, false, schema);
             index = TableIndexFactory::getInstance(scheme);

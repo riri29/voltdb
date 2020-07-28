@@ -424,7 +424,7 @@ private:
         columnIndices.push_back(static_cast<int32_t>(PK_COL_INDEX));
         std::vector<AbstractExpression*> exprs;
         TableIndexScheme scheme("pk",
-                                BALANCED_TREE_INDEX,
+                                TableIndexType::balanced_tree,
                                 columnIndices,
                                 exprs,
                                 NULL,  // predicate
@@ -446,7 +446,7 @@ private:
         std::vector<AbstractExpression*> exprs;
 
         TableIndexScheme scheme("poly_idx",
-                                COVERING_CELL_INDEX,
+                                TableIndexType::covering_cell,
                                 columnIndices,
                                 exprs,
                                 NULL,  // predicate

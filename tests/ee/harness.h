@@ -51,9 +51,9 @@
 
 // A stupid and simple unit test framework for C++ code.
 // Evan Jones <ej@evanjones.ca>
+// Tweaked by Lukai Liu
 
-#ifndef STUPIDUNIT_H__
-#define STUPIDUNIT_H__
+#pragma once
 
 #include <string>
 #include <vector>
@@ -82,9 +82,8 @@ private:
 // implements run(). Users create subclasses via the TEST_F helper macro.
 class Test {
 public:
-    Test() {}
-    virtual ~Test() {}
-
+    Test() = default;
+    virtual ~Test() = default;
     // Run the actual test.
     virtual void run() = 0;
 
@@ -111,13 +110,10 @@ template <typename T>
 class RegisterTest {
 public:
     RegisterTest(TestSuite* suite) {
-        if (suite != NULL)
+        if (suite != nullptr)
             suite->registerTest(&RegisterTest<T>::create);
     }
-
-    ~RegisterTest() {
-    }
-
+    ~RegisterTest() {}
     static Test* create() {
         return new T();
     }
@@ -222,14 +218,13 @@ do { \
 
 // The only difference between EXPECT and ASSERT is that ASSERT returns from
 // the test method if the test fails
-#define STUPIDUNIT_MAKE_ASSERT_MACRO(operation, one, two) \
-do { \
+#define STUPIDUNIT_MAKE_ASSERT_MACRO(operation, one, two) {\
     if (!((one) operation (two))) { \
         STUPIDUNIT_ASSERT_BREAKPOINT_CODE \
         fail(__FILE__, __LINE__, #one " " #operation " " #two); \
         return; \
     } \
-} while (0)
+}
 
 #define ASSERT_EQ(one, two) STUPIDUNIT_MAKE_ASSERT_MACRO(==, one, two)
 #define ASSERT_NE(one, two) STUPIDUNIT_MAKE_ASSERT_MACRO(!=, one, two)
@@ -238,34 +233,56 @@ do { \
 #define ASSERT_GT(one, two) STUPIDUNIT_MAKE_ASSERT_MACRO(>, one, two)
 #define ASSERT_GE(one, two) STUPIDUNIT_MAKE_ASSERT_MACRO(>=, one, two)
 
-#define ASSERT_TRUE_WITH_MESSAGE(value, msg)    \
-    do {                                        \
+#define STUPIDUNIT_MAKE_ASSERT_MACRO_(operation, one, two, def) {\
+    if (!((one) operation (two))) { \
+        STUPIDUNIT_ASSERT_BREAKPOINT_CODE \
+        fail(__FILE__, __LINE__, #one " " #operation " " #two); \
+        return def; \
+    } \
+}
+
+#define ASSERT_EQ_(one, two, def) STUPIDUNIT_MAKE_ASSERT_MACRO_(==, one, two, def)
+#define ASSERT_NE_(one, two, def) STUPIDUNIT_MAKE_ASSERT_MACRO_(!=, one, two, def)
+#define ASSERT_LT_(one, two, def) STUPIDUNIT_MAKE_ASSERT_MACRO_(<, one, two, def)
+#define ASSERT_LE_(one, two, def) STUPIDUNIT_MAKE_ASSERT_MACRO_(<=, one, two, def)
+#define ASSERT_GT_(one, two, def) STUPIDUNIT_MAKE_ASSERT_MACRO_(>, one, two, def)
+#define ASSERT_GE_(one, two, def) STUPIDUNIT_MAKE_ASSERT_MACRO_(>=, one, two, def)
+
+#define ASSERT_TRUE_WITH_MESSAGE(value, msg) {  \
         if (!(value)) {                         \
             STUPIDUNIT_ASSERT_BREAKPOINT_CODE   \
                 fail(__FILE__, __LINE__, msg);  \
             return;                             \
         }                                       \
-    } while (0)
+    }
 
 #define ASSERT_TRUE(value) ASSERT_TRUE_WITH_MESSAGE(value, "Expected true; " #value " is false")
 #define ASSERT_FALSE(value) ASSERT_TRUE_WITH_MESSAGE(!(value), "Expected false; " #value " is true")
 
+#define ASSERT_TRUE_WITH_MESSAGE_(value, msg, def) {  \
+        if (!(value)) {                         \
+            STUPIDUNIT_ASSERT_BREAKPOINT_CODE   \
+                fail(__FILE__, __LINE__, msg);  \
+            return def;                         \
+        }                                       \
+    }
+
+#define ASSERT_TRUE_(value, def) ASSERT_TRUE_WITH_MESSAGE_(value, "Expected true; " #value " is false", def)
+#define ASSERT_FALSE_(value, def) ASSERT_TRUE_WITH_MESSAGE_(!(value), "Expected false; " #value " is true", def)
+
 #define ASSERT_FATAL_EXCEPTION(msgFragment, expr)                       \
-    do {                                                                \
-        try {                                                           \
-            expr;                                                       \
-            fail(__FILE__, __LINE__,                                    \
-                 "expected FatalException that did not occur");         \
-        }                                                               \
-        catch (FatalException& exc) {                                   \
-            std::ostringstream oss;                                     \
-            oss << "did not find \""                                    \
-                << (msgFragment) << "\" in \""                          \
-                << exc.m_reason << "\"";                                \
-            ASSERT_TRUE_WITH_MESSAGE(exc.m_reason.find(msgFragment) != std::string::npos, \
-                                     oss.str().c_str());                \
-        }                                                               \
-    } while(false)
+    try {                                                               \
+        expr;                                                           \
+        fail(__FILE__, __LINE__,                                        \
+             "expected FatalException that did not occur");             \
+    } catch (FatalException& exc) {                                     \
+        std::ostringstream oss;                                         \
+        oss << "did not find \""                                        \
+            << (msgFragment) << "\" in \""                              \
+            << exc.m_reason << "\"";                                    \
+        ASSERT_TRUE_WITH_MESSAGE(exc.m_reason.find(msgFragment) != std::string::npos, \
+                                 oss.str().c_str());                    \
+    }
 
 
 namespace stupidunit {
@@ -300,7 +317,7 @@ extern const char OUT_FILE_ENVIRONMENT_VARIABLE[];
 
 }  // namespace stupidunit
 
-#define EXPECT_DEATH(block) do { \
+#define EXPECT_DEATH(block)    { \
     stupidunit::ExpectDeathStatus status = stupidunit::expectDeath(); \
     if (status == stupidunit::EXECUTE_BLOCK) { \
         block; \
@@ -308,6 +325,5 @@ extern const char OUT_FILE_ENVIRONMENT_VARIABLE[];
     } else if (status == stupidunit::FAILED) { \
         fail(__FILE__, __LINE__, "EXPECT_DEATH(" #block "): did not die"); \
     } \
-} while (0)
+}
 
-#endif  // STUPIDUNIT_H__

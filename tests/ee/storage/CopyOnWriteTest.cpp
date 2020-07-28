@@ -235,7 +235,7 @@ public:
                                                                m_tableSchemaAllowNull);
 
         TableIndexScheme indexScheme("primaryKeyIndex",
-                                             BALANCED_TREE_INDEX,
+                                             TableIndexType::balanced_tree,
                                              m_primaryKeyIndexColumns,
                                              TableIndex::simplyIndexColumns(),
                                              true, true, false, m_tableSchema);
@@ -953,13 +953,13 @@ public:
         }
     }
 
-    void streamSnapshot(int numMutationsDuring, int numMutationsAfter, T_ValueSet &COWTuples, int &totalInserted) {
+    int streamSnapshot(int numMutationsDuring, int numMutationsAfter, T_ValueSet &COWTuples) {
         char config[4];
         ::memset(config, 0, 4);
         ::memset(config, 0, 4);
         ReferenceSerializeInputBE predicateInput(config, 4);
 
-        totalInserted = 0;
+        int totalInserted = 0;
 
         m_table->activateStream(TABLE_STREAM_SNAPSHOT, HiddenColumnFilter::NONE, 0, m_tableId, predicateInput);
 
@@ -969,7 +969,7 @@ public:
             std::vector<int> retPositions;
             int64_t remaining = m_table->streamMore(outputStreams, TABLE_STREAM_SNAPSHOT, retPositions);
             if (remaining >= 0) {
-                ASSERT_EQ(outputStreams.size(), retPositions.size());
+                ASSERT_EQ_(outputStreams.size(), retPositions.size(), 0);
             }
             const int serialized = static_cast<int>(outputStream.position());
             if (serialized == 0) {
@@ -987,7 +987,7 @@ public:
                 if (!inserted) {
                     error("Failed: total inserted %d, with values %d and %d\n", totalInserted, values[0], values[1]);
                 }
-                ASSERT_TRUE(inserted);
+                ASSERT_TRUE_(inserted, 0);
                 totalInserted++;
             }
             for (int jj = 0; jj < numMutationsDuring; jj++) {
@@ -999,6 +999,7 @@ public:
         for (int jj = 0; jj < numMutationsAfter; jj++) {
             doRandomTableMutation(m_table);
         }
+        return totalInserted;
     }
 
     boost::shared_ptr<ReferenceSerializeInputBE> getHashRangePredicateInput(const T_HashRange &testRange) {
@@ -1778,8 +1779,7 @@ TEST_F(CopyOnWriteTest, SnapshotAndIndex) {
         T_ValueSet originalTuples;
         getTableValueSet(originalTuples);
         T_ValueSet COWTuples;
-        int totalSnapped;
-        streamSnapshot(NUM_MUTATIONS, NUM_MUTATIONS, COWTuples, totalSnapped);
+        streamSnapshot(NUM_MUTATIONS, NUM_MUTATIONS, COWTuples);
         checkTuples(NUM_INITIAL + (m_tuplesInserted - m_tuplesDeleted), originalTuples, COWTuples);
         ElasticIndex *directIndex = getElasticIndex();
         checkIndex(testRange1.label("direct"), directIndex, predicates1, false);

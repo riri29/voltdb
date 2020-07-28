@@ -156,13 +156,13 @@ public:
         assert(m_schema2);
         assert(m_kschema1);
         assert(m_kschema2);
-        TableIndexScheme scheme("test_index", BALANCED_TREE_INDEX,
+        TableIndexScheme scheme("test_index", TableIndexType::balanced_tree,
                                 m_columnIndices, TableIndex::simplyIndexColumns(),
                                 false, false, false, m_schema);
-        TableIndexScheme scheme1("test_index1", BALANCED_TREE_INDEX,
+        TableIndexScheme scheme1("test_index1", TableIndexType::balanced_tree,
                                 m_columnIndices, TableIndex::simplyIndexColumns(),
                                 false, false, false, m_schema1);
-        TableIndexScheme scheme2("test_index2", BALANCED_TREE_INDEX,
+        TableIndexScheme scheme2("test_index2", TableIndexType::balanced_tree,
                                 m_columnIndices2, TableIndex::simplyIndexColumns(),
                                 false, false, false, m_schema2);
         // build index
@@ -222,7 +222,7 @@ TEST_F(CompactingTreeMultiIndexTest, SimpleDeleteTuple) {
                                                          columnLengths,
                                                          columnAllowNull);
 
-    TableIndexScheme scheme("test_index", BALANCED_TREE_INDEX,
+    TableIndexScheme scheme("test_index", TableIndexType::balanced_tree,
                             columnIndices, TableIndex::simplyIndexColumns(),
                             false, false, false, schema);
     index = TableIndexFactory::getInstance(scheme);

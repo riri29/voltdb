@@ -427,6 +427,16 @@ ChunkList<Chunk, Compact, E>::last() noexcept {
     return m_back;
 }
 
+template<typename Chunk, typename Compact, typename E> inline vector<pair<void const*, void const*>>
+ChunkList<Chunk, Compact, E>::chunk_ranges() const noexcept {
+    vector<pair<void const*, void const*>> r;
+    r.reserve(size());
+    for_each(cbegin(), cend(), [&r](Chunk const& c) noexcept {
+            r.emplace_back(c.range_left(), c.range_right());
+        });
+    return r;
+}
+
 template<typename Chunk, typename Compact, typename E> inline void
 ChunkList<Chunk, Compact, E>::add(typename ChunkList<Chunk, Compact, E>::iterator const& iter) {
     // Do not `valid()' here. A new chunk is not allocated, thus
@@ -757,6 +767,10 @@ CompactingChunks::~CompactingChunks() {
 
 inline FinalizerAndCopier const& CompactingChunks::finalizerAndCopier() const noexcept {
     return m_finalizerAndCopier;
+}
+
+vector<pair<void const*, void const*>> CompactingChunks::chunk_ranges() const noexcept {
+    return list_type::chunk_ranges();
 }
 
 inline CompactingChunks::BegTxnBoundary::BegTxnBoundary(ChunkList<CompactingChunk, true_type>& chunks) noexcept :

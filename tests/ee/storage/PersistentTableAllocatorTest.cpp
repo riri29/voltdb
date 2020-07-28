@@ -57,27 +57,27 @@ using namespace voltdb::storage;
 using namespace std;
 using PersistentTableAllocatorTest = Test;
 char message[512];
-/**
- * Drop-in replacements for server configuration, and table
- * schema, partition info, etc.
- */
-struct Config1 {
-    static int32_t const SITES_PER_HOST = 1;
-    static vector<string> const COLUMN_NAMES;
-    static TupleSchema const* SCHEMA;
-};
-vector<string> const Config1::COLUMN_NAMES{"ID", "STRING", "GEOGRAPHY"};
 
-TupleSchema const* Config1::SCHEMA = TupleSchemaBuilder(3)
-    .setColumnAtIndex(0, ValueType::tINTEGER, false)
-    .setColumnAtIndex(1, ValueType::tVARCHAR, 512, false)
-    .setColumnAtIndex(2, ValueType::tGEOGRAPHY, 2048, false)
-    .build();
+template<typename T>
+vector<T> random_sample(vector<T> const& pool, size_t n) {
+    if (n >= pool.size()) {
+        return pool;
+    } else {
+        vector<T> r(pool.cbegin(), next(pool.cbegin(), n));
+        for (auto i = n; i < pool.size(); ++i) {
+            auto const j = rand() % i;
+            if (j < n) {
+                r[j] = pool[i];
+            }
+        }
+        return r;
+    }
+}
 
 struct Indexes {
     static TableIndex* createGeospatialIndex(TupleSchema const* schema, char const* name, int32_t col_index) {
         return TableIndexFactory::getInstance(
-                TableIndexScheme(name, COVERING_CELL_INDEX,
+                TableIndexScheme(name, TableIndexType::covering_cell,
                     std::vector<int32_t>(1, col_index),
                     std::vector<AbstractExpression*>{},
                     nullptr,  // predicate
@@ -88,19 +88,42 @@ struct Indexes {
                     "",    // predicate as text
                     schema));
     }
-    static TableIndex* createPrimaryKeyIndex(TupleSchema const* schema, char const* name, int32_t col_index) {
+    static TableIndex* createIndex(TupleSchema const* schema, bool uniq, char const* name, int32_t col_index) {
         return TableIndexFactory::getInstance(
-                TableIndexScheme(name, BALANCED_TREE_INDEX,
+                TableIndexScheme(name, TableIndexType::balanced_tree,
                     std::vector<int32_t>(1, col_index),
                     std::vector<AbstractExpression*>{},
                     nullptr,  // predicate
-                    true, // unique
+                    uniq, // unique
                     false, // countable
                     false, // migrating
                     "",    // expression as text
                     "",    // predicate as text
                     schema));
     }
+};
+/**
+ * Drop-in replacements for server configuration, and table
+ * schema, partition info, etc.
+ */
+struct Config1 {
+    static int32_t const SITES_PER_HOST = 1;
+    static vector<string> const COLUMN_NAMES;
+    static TupleSchema const* SCHEMA;
+    static array<TableIndex*, 3> const INDICES;
+    static int const PK_INDEX_INDEX = -1;           // index into INDICES that is primary key
+};
+vector<string> const Config1::COLUMN_NAMES{"ID", "STRING", "GEOGRAPHY"};
+
+TupleSchema const* Config1::SCHEMA = TupleSchemaBuilder(3)
+    .setColumnAtIndex(0, ValueType::tINTEGER, false)
+    .setColumnAtIndex(1, ValueType::tVARCHAR, 512, false)
+    .setColumnAtIndex(2, ValueType::tGEOGRAPHY, 2048, false)
+    .build();
+array<TableIndex*, 3> const Config1::INDICES{
+    Indexes::createIndex(Config1::SCHEMA, true, "pk", 0),
+    Indexes::createIndex(Config1::SCHEMA, false, "vc", 1),
+    Indexes::createGeospatialIndex(Config1::SCHEMA, "pol_index", 2)
 };
 
 /**
@@ -147,6 +170,11 @@ public:
                         SIGNATURE,
                         false,                     // is materialized
                         0)));                      // partition column
+        for_each(Config::INDICES.cbegin(), Config::INDICES.cend(),
+                [this](TableIndex* ind) { m_table->addIndex(ind); });
+        if (Config::PK_INDEX_INDEX >= 0) {
+            m_table->setPrimaryKeyIndex(Config::INDICES[Config::PK_INDEX_INDEX]);
+        }
     }
     void insert(size_t nrows) {
         for (auto i = 0lu; i < nrows; ++i) {
@@ -156,8 +184,12 @@ public:
     PersistentTable& table() noexcept;
     PersistentTable const& table() const noexcept;
     static size_t id_of(TableTuple const&);
+    vector<void const*> slots() const;             // get addresses in txn view
     static bool valid(TableTuple const&, size_t);
     static bool valid(TableTuple const&);
+    size_t size() const noexcept {
+        return table().visibleTupleCount();
+    }
 };
 
 template<typename Config> char ProcPersistenTable<Config>::SIGNATURE[20] = {};
@@ -168,6 +200,20 @@ template<typename Config> PersistentTable& ProcPersistenTable<Config>::table() n
 
 template<typename Config> PersistentTable const& ProcPersistenTable<Config>::table() const noexcept {
     return *m_table;
+}
+
+template<typename Config> vector<void const*> ProcPersistenTable<Config>::slots() const {
+    vector<void const*> r;
+    r.reserve(table().allocator().size());
+    auto const& chunks = table().allocator().chunk_ranges();
+    for_each(chunks.cbegin(), chunks.cend(),
+            [&r, s = table().allocator().tupleSize()](pair<void const*, void const*> const& p) noexcept {
+                for (auto const* cur = reinterpret_cast<char const*>(p.first); cur < p.second; cur += s) {
+                    r.emplace_back(cur);
+                }
+            });
+    assert(r.size() == table().allocator().size());
+    return r;
 }
 
 template<typename Config> NValue ProcPersistenTable<Config>::generate(
@@ -210,7 +256,7 @@ template<typename Config> void ProcPersistenTable<Config>::insert_row(size_t id)
     m_table->insertTuple(
             Config::SCHEMA->build_with(
                 m_table->tempTuple(),
-                [](size_t id, ValueType vt, TupleSchema::ColumnInfo const& info) -> NValue {
+                [id](size_t col_index, ValueType vt, TupleSchema::ColumnInfo const& info) -> NValue {
                     return ProcPersistenTable<Config>::generate(id, vt, info.length);
                 }));
 }
@@ -227,7 +273,7 @@ template<typename Config> size_t ProcPersistenTable<Config>::id_of(TableTuple co
                 throw logic_error(message);
             } else {
                 found = true;
-                col = i;
+                col = tuple.getNValue(i).getInteger();
             }
         }
     }
@@ -247,7 +293,7 @@ template<typename Config> bool ProcPersistenTable<Config>::valid(TableTuple cons
         bool matched = true;
         for (auto i = 0l; i < Config::SCHEMA->columnCount() && matched; ++i) {
             matched &= ! tuple.getNValue(i).compareNullAsMax(
-                        generate(i, Config::SCHEMA->columnType(i),
+                        generate(id, Config::SCHEMA->columnType(i),
                             Config::SCHEMA->getColumnInfo(i)->length));
         }
         return matched;
@@ -270,6 +316,14 @@ TEST_F(PersistentTableAllocatorTest, Dummy) {
                             t.table().tempTuple().move(const_cast<void*>(p)));
                 }));
     ASSERT_EQ(50lu, i);
+    auto const& slots = t.slots();
+    ASSERT_EQ(50lu, slots.size());
+    i = 0;
+    ASSERT_TRUE(all_of(slots.cbegin(), slots.cend(), [&t, &i](void const* p) noexcept {
+                    return ProcPersistenTable<Config1>::valid(
+                            t.table().tempTuple().move(const_cast<void*>(p)),
+                            i++);
+                }));
 }
 
 int main() {

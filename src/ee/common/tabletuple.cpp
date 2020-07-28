@@ -86,7 +86,7 @@ std::string TableTuple::debug(const std::string& tableName, bool skipNonInline) 
         }
     }
 
-    buffer << " @" << static_cast<const void*>(address());
+    buffer << " @" << address();
 
     return buffer.str();
 }

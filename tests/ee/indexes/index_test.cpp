@@ -166,7 +166,7 @@ public:
 
 
         TableIndexScheme pkeyScheme(name,
-                                    BALANCED_TREE_INDEX,
+                                    TableIndexType::balanced_tree,
                                     pkey_column_indices, TableIndex::simplyIndexColumns(),
                                     true, true, false, schema);
         vector<TableIndexScheme> indexes;
@@ -303,7 +303,7 @@ public:
         pkey_column_indices.push_back(0);
         pkey_column_indices.push_back(1);
 
-        TableIndexScheme pkeyScheme("idx_pkey", BALANCED_TREE_INDEX,
+        TableIndexScheme pkeyScheme("idx_pkey", TableIndexType::balanced_tree,
                                     pkey_column_indices, TableIndex::simplyIndexColumns(),
                                     true, true, false, schema);
 
@@ -399,7 +399,7 @@ TEST_F(IndexTest, IntUnique) {
     iu_column_types.push_back(ValueType::tBIGINT);
 
     init("iu",
-         BALANCED_TREE_INDEX,
+         TableIndexType::balanced_tree,
          iu_column_indices,
          iu_column_types,
          true);
@@ -417,7 +417,7 @@ TEST_F(IndexTest, IntMulti) {
     im_column_indices.push_back(3);
     im_column_types.push_back(ValueType::tBIGINT);
     init("im",
-         BALANCED_TREE_INDEX,
+         TableIndexType::balanced_tree,
          im_column_indices,
          im_column_types,
          false);
@@ -436,7 +436,7 @@ TEST_F(IndexTest, IntsUnique) {
     ixu_column_types.push_back(ValueType::tBIGINT);
     ixu_column_types.push_back(ValueType::tBIGINT);
     init("ixu",
-         BALANCED_TREE_INDEX,
+         TableIndexType::balanced_tree,
          ixu_column_indices,
          ixu_column_types,
          true);
@@ -585,7 +585,7 @@ TEST_F(IndexTest, IntsMulti) {
     ixm_column_types.push_back(ValueType::tBIGINT);
     ixm_column_types.push_back(ValueType::tBIGINT);
     init("ixm2",
-         BALANCED_TREE_INDEX,
+         TableIndexType::balanced_tree,
          ixm_column_indices,
          ixm_column_types,
          false);
@@ -808,7 +808,7 @@ TEST_F(IndexTest, ReentrantTreeUnique) {
     ixu_column_types.push_back(ValueType::tBIGINT);
     ixu_column_types.push_back(ValueType::tBIGINT);
     init("ixu",
-            BALANCED_TREE_INDEX,
+            TableIndexType::balanced_tree,
             ixu_column_indices,
             ixu_column_types,
             true);
@@ -898,7 +898,7 @@ TEST_F(IndexTest, ReentrantTreeMultiple) {
     ixm_column_types.push_back(ValueType::tBIGINT);
     ixm_column_types.push_back(ValueType::tBIGINT);
     init("ixm2",
-         BALANCED_TREE_INDEX,
+         TableIndexType::balanced_tree,
          ixm_column_indices,
          ixm_column_types,
          false);
@@ -984,7 +984,7 @@ TEST_F(IndexTest, ReentrantHashUnique) {
     ixm_column_types.push_back(ValueType::tBIGINT);
     ixm_column_types.push_back(ValueType::tBIGINT);
     init("ixh1",
-         HASH_TABLE_INDEX,
+         TableIndexType::hash_table,
          ixm_column_indices,
          ixm_column_types,
          true);
@@ -1040,7 +1040,7 @@ TEST_F(IndexTest, ReentrantHashMultiple) {
     ixm_column_types.push_back(ValueType::tBIGINT);
     ixm_column_types.push_back(ValueType::tBIGINT);
     init("ixh2",
-         HASH_TABLE_INDEX,
+         TableIndexType::hash_table,
          ixm_column_indices,
          ixm_column_types,
          false);

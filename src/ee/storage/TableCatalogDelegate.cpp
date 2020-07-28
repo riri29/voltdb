@@ -207,13 +207,13 @@ getIndexIdFromMap(TableIndexType type, bool countable, bool isUnique,
 
     // add the type of the index
     switch (type) {
-    case BALANCED_TREE_INDEX:
+    case TableIndexType::balanced_tree:
         retval += "B";
         break;
-    case HASH_TABLE_INDEX:
+    case TableIndexType::hash_table:
         retval += "H";
         break;
-    case COVERING_CELL_INDEX:
+    case TableIndexType::covering_cell:
         retval += "G"; // C is taken
         break;
     default:

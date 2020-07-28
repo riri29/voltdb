@@ -67,7 +67,7 @@ class TableIndexPicker {
     template <class TKeyType>
     TableIndex *getInstanceForKeyType() const {
         if (m_scheme.unique) {
-            if (m_type != BALANCED_TREE_INDEX) {
+            if (m_type != TableIndexType::balanced_tree) {
                 return new CompactingHashUniqueIndex<TKeyType >(m_keySchema, m_scheme);
             } else if (m_scheme.countable) {
                 return new CompactingTreeUniqueIndex<NormalKeyValuePair<TKeyType>, true>(m_keySchema, m_scheme);
@@ -75,7 +75,7 @@ class TableIndexPicker {
                 return new CompactingTreeUniqueIndex<NormalKeyValuePair<TKeyType>, false>(m_keySchema, m_scheme);
             }
         } else {
-            if (m_type != BALANCED_TREE_INDEX) {
+            if (m_type != TableIndexType::balanced_tree) {
                 return new CompactingHashMultiMapIndex<TKeyType >(m_keySchema, m_scheme);
             } else if (m_scheme.countable) {
                 return new CompactingTreeMultiMapIndex<PointerKeyValuePair<TKeyType>, true>(m_keySchema, m_scheme);
@@ -96,11 +96,11 @@ class TableIndexPicker {
             return getInstanceForKeyType<IntsKey<(KeySize-1)/8 + 1> >();
         }
         // Generic Key
-        if (m_type == HASH_TABLE_INDEX) {
+        if (m_type == TableIndexType::hash_table) {
             VOLT_INFO("Producing a tree index for %s: "
                       "hash index not currently supported for this index key.\n",
                       m_scheme.name.c_str());
-            m_type = BALANCED_TREE_INDEX;
+            m_type = TableIndexType::balanced_tree;
         }
         // If any indexed expression value can not either be stored "inline" within a (GenericKey) key tuple
         // or specifically in a non-inlined object shared with the base table (because it is a simple column value),
@@ -128,7 +128,7 @@ public:
     TableIndex *getInstance() {
         TableIndex *result;
 /*
-        if ((!m_intsOnly) && (m_type == HASH_TABLE_INDEX)) {
+        if ((!m_intsOnly) && (m_type == TableIndexType::hash_table)) {
             switch (colCount) {
                 case 1: return getInstanceForHashedGenericColumns<1>();
                 case 2: return getInstanceForHashedGenericColumns<2>();
@@ -212,7 +212,7 @@ static CoveringCellIndex* getCoveringCellIndexInstance(const TableIndexScheme &s
 
 TableIndex *TableIndexFactory::getInstance(const TableIndexScheme &scheme) {
 
-    if (scheme.type == COVERING_CELL_INDEX) {
+    if (scheme.type == TableIndexType::covering_cell) {
         return getCoveringCellIndexInstance(scheme);
     }
 

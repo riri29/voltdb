@@ -373,6 +373,8 @@ namespace voltdb {
             id_type& lastChunkId();
             template<typename Pred> void remove_if(Pred p);
             typename super::iterator& last() noexcept;
+            // light-weight, one-shot range-query alternative to using iterator
+            vector<pair<void const*, void const*>> chunk_ranges() const noexcept;
         public:
             using collections = Collections<collections_type>;
             using iterator = typename super::iterator;
@@ -736,6 +738,7 @@ namespace voltdb {
             id_type id() const noexcept;
             size_t chunkSize() const noexcept;
             FinalizerAndCopier const& finalizerAndCopier() const noexcept;
+            vector<pair<void const*, void const*>> chunk_ranges() const noexcept;
             using list_type::tupleSize; using list_type::chunkSize;
             using list_type::begin; using list_type::end;
             using CompactingStorageTrait::frozen;
