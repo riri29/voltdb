@@ -113,6 +113,7 @@ public class MpTerm implements Term
         @Override
         public void run(ImmutableMap<Integer, LeaderCallBackInfo> cache) {
             if (cache == null || cache.isEmpty() || !m_lastUpdateByMigration) {
+                VoltZK.removeTxnRestartTrigger(m_zk);
                 return;
             }
             ((MpInitiatorMailbox)m_mailbox).updateReplicas(new ArrayList<Long>(m_knownLeaders), m_cacheCopy, RepairType.TXN_RESTART);
