@@ -736,7 +736,7 @@ public class VoltZK {
     public static void addTxnRestartTrigger(ZooKeeper zk) {
         try {
             String id = Long.toString(Long.MAX_VALUE) + "/" + Long.toString(Long.MAX_VALUE);
-            zk.create(ZKUtil.joinZKPath(trigger_txn_restart, "restart"),
+            zk.create(ZKUtil.joinZKPath(trigger_txn_restart, "100000"),
                     id.getBytes(Charsets.UTF_8),
                     Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
         } catch (KeeperException.NodeExistsException e) {
@@ -747,7 +747,7 @@ public class VoltZK {
 
     public static void removeTxnRestartTrigger(ZooKeeper zk) {
         try {
-            final String path = ZKUtil.joinZKPath(trigger_txn_restart, "restart");
+            final String path = ZKUtil.joinZKPath(trigger_txn_restart, "100000");
             zk.delete(path, -1);
         } catch (KeeperException.NoNodeException e) {
         } catch (Exception e) {
