@@ -72,7 +72,6 @@ public class MpTransactionState extends TransactionState
     private static final String volt_output_buffer_overflow = "V0001";
     private static final int DR_BEGINTXN_MSG_LEN = PartitionDRGateway.getMessageTypeLength(DRRecordType.BEGIN_TXN);
     private static final int DR_ENDTXN_MSG_LEN = PartitionDRGateway.getMessageTypeLength(DRRecordType.END_TXN);
-    public static final String TXN_RESTART_MSG = "Transaction being restarted due to fault recovery or shutdown.";
 
     /**
      *  This is thrown by the TransactionState instance when something

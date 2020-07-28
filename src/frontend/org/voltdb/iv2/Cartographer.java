@@ -233,7 +233,6 @@ public class Cartographer extends StatsSource
             m_currentSPMasters.addAll(newHSIDs);
             m_currentMastersByHost.clear();
             m_currentMastersByHost.putAll(newMastersByHost);
-            ImmutableMap.copyOf(cache);
         }
     };
 
