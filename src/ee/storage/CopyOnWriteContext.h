@@ -14,11 +14,8 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with VoltDB.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef COPYONWRITECONTEXT_H_
-#define COPYONWRITECONTEXT_H_
+#pragma once
 
-#include <string>
-#include <vector>
 #include <utility>
 #include "common/TupleOutputStreamProcessor.h"
 #include "storage/persistenttable.h"
@@ -26,11 +23,8 @@
 #include "storage/TableStreamerContext.h"
 #include "common/Pool.hpp"
 #include "common/tabletuple.h"
-#include <boost/scoped_ptr.hpp>
-#include <boost/ptr_container/ptr_vector.hpp>
 
 namespace voltdb {
-class ParsedPredicate;
 class TupleOutputStreamProcessor;
 class PersistentTableSurgeon;
 
@@ -40,8 +34,7 @@ class CopyOnWriteContext : public TableStreamerContext {
             const  HiddenColumnFilter&, const std::vector<std::string>&);
 
 public:
-
-    virtual ~CopyOnWriteContext();
+    virtual ~CopyOnWriteContext(){}
 
     /**
      * Activation handler.
@@ -61,7 +54,7 @@ public:
     /**
      * Optional tuple update handler.
      */
-    virtual void notifyTupleUpdate(TableTuple &tuple);
+    virtual bool notifyTupleUpdate(TableTuple &tuple);
 
     virtual int64_t getRemainingCount();
 
@@ -88,11 +81,10 @@ private:
     PersistentTable::Alloc& m_allocator;
     int64_t m_totalTuples;
     int64_t m_tuplesRemaining;
-    int64_t m_serializationBatches;
+    int64_t m_serializationBatches = 0;
     const bool m_replicated;
     const HiddenColumnFilter m_hiddenColumnFilter;
 };
 
 }
 
-#endif /* COPYONWRITECONTEXT_H_ */

@@ -313,7 +313,7 @@ protected:
 
     virtual void initializeWithColumns(TupleSchema const* schema,
             std::vector<std::string> const& columnNames,
-          bool ownsTupleSchema);
+            bool ownsTupleSchema);
     bool checkNulls(TableTuple const& tuple) const;
 
     void serializeColumnHeaderTo(SerializeOutput& serialOutput, HiddenColumnFilter *hiddenColumnFilter);

@@ -235,6 +235,8 @@ namespace voltdb {
             void*const range_left() const noexcept;
             void*const range_right() const noexcept;
             size_t tupleSize() const noexcept;
+            size_t capacity() const noexcept;
+            size_t used() const noexcept;
             id_type id() const noexcept;
             bool valid(bool compact) const noexcept;
         };
@@ -584,15 +586,16 @@ namespace voltdb {
         class FinalizerAndCopier {
             bool const m_complicated = false;
             function<void(void const*)> const m_finalize{};
-            function<void*(void*, void const*)> const m_copy{};
+            function<void*(void*__restrict__, void const*__restrict__)> const m_copy{};
         public:
             FinalizerAndCopier() noexcept = default;
             FinalizerAndCopier(FinalizerAndCopier const&) = default;
             FinalizerAndCopier(function<void(void const*)> const&,
-                    function<void*(void*, void const*)> const&) noexcept;
+                    function<void*(void*__restrict__, void const*__restrict__)> const&) noexcept;
             operator bool() const noexcept;
             void finalize(void const*) const;
-            void* copy(void*, void const*) const;
+            void finalize(void const*__restrict__, void const*__restrict__, size_t) const;
+            void* copy(void*__restrict__, void const*__restrict__) const;
         };
 
         /**
@@ -604,6 +607,8 @@ namespace voltdb {
         class CompactingChunks : private ChunkList<CompactingChunk, true_type>, private CompactingStorageTrait {
         public:
             using Compact = true_type;
+            // Used to specify iterator range in call back of batch removal.
+            using remove_iterator_type = typename vector<pair<void*, void const*>>::const_iterator;
             class BegTxnBoundary final {
                 ChunkList<CompactingChunk, Compact> const& m_chunks;
                 typename ChunkList<CompactingChunk, Compact>::iterator m_iter;
@@ -664,21 +669,42 @@ namespace voltdb {
                 };
                 using map_type = map<id_type, RemovableRegion, less_rolling_type<id_type>>;
                 map_type m_removedRegions{};
-                map<void const*, void const*> m_frozenBoundaries{};
-                vector<void*> m_moved{}, m_removed{};
-                vector<pair<void*, void const*>> m_movements;// (dst, <= src)
+                map<void const*, void const*> m_partialFrozenBoundaries{};   // Only used to check for pure removal; is incomplete for compacted removals
+                vector<pair<id_type, void*>> m_moved{};
+                vector<void*> m_removed{};
+                vector<pair<void*, void const*>> m_movements;
+                /**
+                 * [m_movements.begin(), ..., m_endFrozenSrc) is a
+                 * range of compactions, where the address to be deleted
+                 * lies in the frozen region;
+                 * [m_movements.begin(), ..., m_endFrozenDst) is
+                 * a range of compactions, where the address to be
+                 * compacted/moved lies in the frozen region.
+                 *
+                 * Invariant: m_movements.begin() <= m_endFrozenDst <=
+                 * m_endFrozenSrc <= m_movements.end()
+                 */
+                typename vector<pair<void*, void const*>>::const_iterator
+                    m_endFrozenSrc, m_endFrozenDst;
                 size_t m_size = 0;
                 void mapping();                        // set up m_movements
                 void shift();                          // adjust txn begin boundary
                 void validate() const;
-                bool finalizable(void const*) const;
+                static bool finalizable(void const*, map<void const*, void const*> const&);
+                bool partial_finalizable(void const*) const;   // used to check for m_removed and compacting removal addr
+                bool full_finalizable(pair<id_type, void const*> const&) const;      // used to check for compacted removal addr
             public:
                 explicit DelayedRemover(CompactingChunks&);
                 void reserve(size_t);
                 // Register a single allocation to be removed later
                 void add(void*);
+                /**
+                 * Queries
+                 */
                 vector<pair<void*, void const*>> const& movements() const;       // #2 copied over to #1
                 vector<void*> const& removed() const;
+                remove_iterator_type const& endFrozenSrc() const noexcept;
+                remove_iterator_type const& endFrozenDst() const noexcept;
                 /**
                  * finalize on removed addresses, and some dst of moved address.
                  * Note that it has to be called prior to any movements.
@@ -729,6 +755,7 @@ namespace voltdb {
              * involving no compaction.
              */
             enum class remove_direction : char {from_head, from_tail};
+            enum class compact_state : char {both_frozen, src_frozen, unfrozen};
             /**
              * Special form of free from either ends, that
              * triggers no compaction, and does *not* call
@@ -740,12 +767,12 @@ namespace voltdb {
              *
              * Returns whether compaction (i.e. memory copy) occurred.
              */
-            bool free(void*, function<void(void const*)> const&&);
+            bool free(void*, function<void(void const*, compact_state)> const&&);
             /**
              * State changes
              */
             void freeze();
-            void thaw();          // when to apply finalizer
+            void thaw();
             /**
              * Auxillary others
              */
@@ -794,10 +821,14 @@ namespace voltdb {
         template<typename Alloc, typename Trait,
             typename = typename enable_if<is_chunks<Alloc>::value && is_base_of<BaseHistoryRetainTrait, Trait>::value>::type>
         class TxnPreHook : private Trait {
-            using map_type = typename Collections<collections_type>::template map<void const*, void const*>;
+            using map_type = typename Collections<collections_type>::template
+                map<void const*, void const*>;
+            using mmap_type = typename Collections<collections_type>::template
+                map<void const*, typename map_type::const_iterator>;
             static FinalizerAndCopier const EMPTY_FINALIZER;
             bool m_recording = false;            // in snapshot process?
             map_type m_changes{};                // addr in persistent storage under change => addr storing before-change content
+            mmap_type m_updates{};
             Alloc m_changeStore;
             FinalizerAndCopier const& m_finalizerAndCopier;
         public:
@@ -810,9 +841,7 @@ namespace voltdb {
             ~TxnPreHook();
             void freeze();
             void thaw();
-            // NOTE: the deletion event need to happen before
-            // calling add(...), unlike insertion/update.
-            // \return whether finalize is called on the addr
+            bool changed(void const*) const noexcept;             // tracked by hook memory
             template<typename IteratorObserver,
                 typename = typename enable_if<IteratorObserver::is_iterator_observer::value>::type>
             void addForUpdate(void const*, IteratorObserver&);
@@ -845,14 +874,34 @@ namespace voltdb {
             using Hook::release;                   // reminds to client: this must be called for GC to happen (instead of delaying it to thaw())
             HookedCompactingChunks(size_t) noexcept;
             HookedCompactingChunks(size_t, FinalizerAndCopier const&) noexcept;
+            /**
+             * It is important that the return value of
+             * `freeze()' be kept around, since its weak ptr
+             * m_iterator_observer, decides whether a change
+             * needs to be tracked. Not doing so will result in
+             * unnecessary memory consumption.
+             */
             template<typename Tag>
             shared_ptr<typename IterableTableTupleChunks<HookedCompactingChunks<Hook, E>, Tag, void>::hooked_iterator>
             freeze();
             template<typename Tag> void thaw();    // switch of snapshot process
             void* allocate();                      // NOTE: now that client in control of when to fill in, be cautious not to overflow!!
-            // NOTE: these methods with Tag template must be
-            // supplied with same type as freeze() method.
-            template<typename Tag> void update(void*); // NOTE: this must be called prior to any memcpy operations happen
+            /**
+             * these methods with Tag template must be
+             * supplied with same type as freeze() method.
+             * \return see Hook::addForUpdate
+             * NOTE: must be called prior to any memcpy/deep copy operations from caller
+             */
+            template<typename Tag> void update(void*);
+            /**
+             * Light weight free() operation at arbitrary
+             * position
+             * callback arg: compacted addr (that gets moved over
+             * to overwrite), and indicator for whether finalizer
+             * need to be called on the compacted addr.
+             */
+            template<typename Tag> bool
+            remove(void const*, function<void(void const*, compact_state)> const&&);
             /**
              * Light weight free() operations from either end,
              * involving no compaction. Removing from head when
@@ -865,14 +914,10 @@ namespace voltdb {
              */
             void remove(remove_direction, void const*);
             /**
-             * Light weight free() operation at arbitrary
-             * position
-             */
-            template<typename Tag> bool
-            remove(void const*, function<void(void const*)> const&&);
-            /**
              * Batch removal using separate calls
              */
+            using remove_cb_type = function<void(vector<pair<void*, void const*>> const&,
+                    remove_iterator_type, remove_iterator_type)>;
             void remove_reserve(size_t);
             void remove_add(void*);
             /**
@@ -885,7 +930,7 @@ namespace voltdb {
              * \return (#removals, #finalizations)
              */
             template<typename Tag> pair<size_t, size_t>
-            remove_force(function<void(vector<pair<void*, void const*>> const&)> const&);
+            remove_force(remove_cb_type const&);
             void remove_reset() noexcept;                // for testing only
             template<typename Tag> void clear();
         };

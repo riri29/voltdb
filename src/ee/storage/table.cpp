@@ -64,9 +64,7 @@ using std::string;
 namespace voltdb {
 
 Table::Table(int tableAllocationTargetSize) :
-    m_tableAllocationTargetSize(tableAllocationTargetSize)
-{
-}
+    m_tableAllocationTargetSize(tableAllocationTargetSize) { }
 
 Table::~Table() {
     // not all tables are reference counted but this should be invariant
@@ -82,7 +80,8 @@ Table::~Table() {
         delete[] m_columnHeaderData;
 }
 
-void Table::initializeWithColumns(TupleSchema const* schema, const std::vector<string> &columnNames, bool ownsTupleSchema) {
+void Table::initializeWithColumns(TupleSchema const*schema,
+        const std::vector<string> &columnNames, bool ownsTupleSchema) {
 
     // copy the tuple schema
     if (m_ownsTupleSchema) {

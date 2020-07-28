@@ -156,15 +156,15 @@ LargeTempTable* TableFactory::buildCopiedLargeTempTable( const std::string &name
     return newTable;
 }
 
-LargeTempTable* TableFactory::buildLargeTempTable(const std::string &name, TupleSchema const* schema,
-        const std::vector<std::string> &columnNames) {
+LargeTempTable* TableFactory::buildLargeTempTable(const std::string &name,
+        TupleSchema const* schema, const std::vector<std::string> &columnNames) {
     LargeTempTable* table = new LargeTempTable();
     initCommon(0, table, name, schema, columnNames, true);
     return table;
 }
 
 void TableFactory::initCommon(voltdb::CatalogId databaseId, Table *table,
-        const std::string &name, TupleSchema  const*schema, const std::vector<std::string> &columnNames,
+        const std::string &name, TupleSchema const*schema, const std::vector<std::string> &columnNames,
         const bool ownsTupleSchema) {
     vassert(table != NULL);
     vassert(schema != NULL);

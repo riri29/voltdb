@@ -14,12 +14,7 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with VoltDB.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef ELASTIC_CONTEXT_H_
-#define ELASTIC_CONTEXT_H_
-
-#include <vector>
-#include <string>
-#include <boost/scoped_ptr.hpp>
+#pragma once
 #include "storage/TableStreamerContext.h"
 #include "storage/TableStreamer.h"
 
@@ -27,16 +22,11 @@ class DummyElasticTableStreamer;
 class CopyOnWriteTest;
 
 namespace voltdb {
-
 class TupleOutputStreamProcessor;
-
-class ElasticContext : public TableStreamerContext
-{
-
+class ElasticContext : public TableStreamerContext {
     friend class TableStreamer;
     friend class ::DummyElasticTableStreamer;
     friend class ::CopyOnWriteTest;
-
 public:
 
     /**
@@ -129,4 +119,3 @@ private:
 
 } // namespace voltdb
 
-#endif // ELASTIC_CONTEXT_H_

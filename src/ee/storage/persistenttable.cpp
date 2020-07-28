@@ -51,12 +51,12 @@ namespace voltdb {
       return reinterpret_cast<T*>(memcpy(pool->allocate(partialSize), src, partialSize));
    }
 
-class SetAndRestorePendingDeleteFlag
-{
+class SetAndRestorePendingDeleteFlag {
+    TableTuple& m_target;
+    uint8_t m_restoreFlag;
 public:
     SetAndRestorePendingDeleteFlag(TableTuple& target) :
-            m_target(target), m_restoreFlag(*target.address())
-    {
+            m_target(target), m_restoreFlag(*target.address()) {
         vassert(!m_target.isPendingDelete());
         m_target.setPendingDeleteOnUndoReleaseTrue();
     }
@@ -64,10 +64,6 @@ public:
     ~SetAndRestorePendingDeleteFlag() {
         *(reinterpret_cast<char*>(m_target.address())) = m_restoreFlag;
     }
-
-private:
-    TableTuple& m_target;
-    uint8_t m_restoreFlag;
 };
 
 PersistentTable::PersistentTable(int partitionColumn,
@@ -78,33 +74,16 @@ PersistentTable::PersistentTable(int partitionColumn,
                                  bool drEnabled,
                                  bool isReplicated,
                                  TableType tableType)
-    : ViewableAndReplicableTable(tableAllocationTargetSize == 0 ? TABLE_BLOCKSIZE : tableAllocationTargetSize, partitionColumn, isReplicated)
+    : ViewableAndReplicableTable(tableAllocationTargetSize == 0 ?
+            TABLE_BLOCKSIZE :
+            tableAllocationTargetSize, partitionColumn, isReplicated)
     , m_isMaterialized(isMaterialized)   // Other constructors are dependent on this one
-    , m_allowNulls()
     , m_tupleLimit(tupleLimit)
-    , m_tuplesPerChunk(0)
-    , m_purgeExecutorVector()
     , m_stats(this)
-    , m_snapshotStarted(false)
-    , m_tableStreamer()
-    , m_invisibleTuplesPendingDeleteCount(0)
-    , m_batchDeleteTupleCount(0)
     , m_surgeon(*this)
-    , m_tableForStreamIndexing(nullptr)
     , m_drEnabled(drEnabled && !isMaterialized)
-    , m_noAvailableUniqueIndex(false)
-    , m_smallestUniqueIndex(nullptr)
-    , m_smallestUniqueIndexCrc(0)
-    , m_pkeyIndex(nullptr)
-    , m_mvHandler(nullptr)
-    , m_mvTrigger(nullptr)
-    , m_viewHandlers()
-    , m_deltaTable(nullptr)
-    , m_deltaTableActive(false)
     , m_releaseReplicated(this)
-    , m_tableType(tableType)
-    , m_shadowStream(nullptr)
-{
+    , m_tableType(tableType) {
     if (!m_isMaterialized && m_isReplicated != (m_partitionColumn == -1)) {
         VOLT_ERROR("CAUTION: detected inconsistent isReplicate flag. Table name: %s, m_isMaterialized: %s, m_partitionColumn: %d, m_isReplicated: %s\n",
                 m_name.c_str(), m_isMaterialized ? "true" : "false", m_partitionColumn, m_isReplicated ? "true" : "false");
@@ -117,9 +96,27 @@ PersistentTable::PersistentTable(int partitionColumn,
     }
 }
 
-void PersistentTable::initializeWithColumns(TupleSchema const* schema,
-                                            std::vector<std::string> const& columnNames,
-                                            bool ownsTupleSchema) {
+void* PersistentTable::allocatorCopier(void*__restrict__ dst, void const*__restrict__ src) const {
+    checkContext("Copying");
+    TableTuple srcTuple(m_schema), dstTuple(m_schema);
+    srcTuple.move(const_cast<void*>(src));
+    dstTuple.move(dst);
+    dstTuple.resetHeader();
+    dstTuple.copyForPersistentInsert(srcTuple);
+    return dst;
+}
+
+inline void PersistentTable::allocatorFinalize(void const* p) {
+    checkContext("Cleaning");
+    TableTuple tuple(m_schema);
+    tuple.move(const_cast<void*>(p));
+    assert(! tuple.isShallowCopy());
+    decreaseStringMemCount(tuple.getNonInlinedMemorySizeForPersistentTable());
+    tuple.freeObjectColumns();
+}
+
+void PersistentTable::initializeWithColumns(
+        TupleSchema const* schema, std::vector<std::string> const& columnNames, bool ownsTupleSchema) {
     vassert(schema != nullptr);
 
     Table::initializeWithColumns(schema, columnNames, ownsTupleSchema);
@@ -130,23 +127,11 @@ void PersistentTable::initializeWithColumns(TupleSchema const* schema,
     auto const tupleSize = schema->tupleLength() + TUPLE_HEADER_SIZE;
     if (m_schema->getUninlinedObjectColumnCount() > 0) {
         m_dataStorage.reset(new Alloc{tupleSize, {
-            [this] (void const* p) {      // finalizer
-                checkContext("Cleaning");
-                TableTuple tuple(m_schema);
-                tuple.move(const_cast<void*>(p));
-                decreaseStringMemCount(tuple.getNonInlinedMemorySizeForPersistentTable());
-                tuple.freeObjectColumns();
-            },
-            [this] (void* fresh, void const* dest) {       // copier
-                checkContext("Copying");
-                TableTuple freshCopy(m_schema);
-                freshCopy.move(fresh);
-                TableTuple source(m_schema);
-                source.move(const_cast<void*>(dest));
-                freshCopy.resetHeader();
-                freshCopy.copyForPersistentInsert(source);
-                return fresh;
-            }}});
+            bind(&PersistentTable::allocatorFinalize, this,
+                    std::placeholders::_1),
+            bind(&PersistentTable::allocatorCopier, this,
+                    std::placeholders::_1, std::placeholders::_2)
+            }});
     } else {
         m_dataStorage.reset(new Alloc{tupleSize});
     }
@@ -171,7 +156,7 @@ PersistentTable::~PersistentTable() {
     }
 
     // clean up indexes
-    BOOST_FOREACH (auto index, m_indexes) {
+    for (auto index : m_indexes) {
         delete index;
     }
 
@@ -182,7 +167,7 @@ PersistentTable::~PersistentTable() {
         // if we are currently in Replicated table memory, break out because we are
         // updating other (possibly partitioned) tables
         ConditionalExecuteOutsideMpMemory getOutOfMpMemory(m_isReplicated && !m_viewHandlers.empty());
-        BOOST_FOREACH (auto viewHandler, m_viewHandlers) {
+        for (auto viewHandler : m_viewHandlers) {
             viewHandler->dropSourceTable(this);
         }
     }
@@ -194,7 +179,7 @@ PersistentTable::~PersistentTable() {
     }
 }
 
-void PersistentTable::checkContext(const char* operation) {
+void PersistentTable::checkContext(const char* operation) const {
     if (isReplicatedTable() != SynchronizedThreadLock::isInMpEngineContext()) {
        std::stringstream message;
        message << operation << " tuples from table " << name().c_str() <<
@@ -203,6 +188,7 @@ void PersistentTable::checkContext(const char* operation) {
        message << boost::stacktrace::stacktrace() << '\n';
        string msg = message.str();
        LogManager::getThreadLogger(LOGGERID_HOST)->log(voltdb::LOGLEVEL_ERROR, &msg);
+       vassert(false);
     }
 }
 // ------------------------------------------------------------------
@@ -263,7 +249,7 @@ void PersistentTable::truncateTableUndo(TableCatalogDelegate* tcd,
 
     auto views = originalTable->views();
     // reset all view table pointers
-    BOOST_FOREACH (auto originalView, views) {
+    for (auto originalView : views) {
         PersistentTable* destTable = originalView->destTable();
         TableCatalogDelegate* targetTcd = engine->getTableDelegate(destTable->name());
         // call decrement reference count on the newly constructed view table
@@ -282,7 +268,7 @@ void PersistentTable::truncateTableUndo(TableCatalogDelegate* tcd,
 
 // Decrement each view-based table's reference count.
 template<class T> static inline void decrementViewReferences(T views) {
-    BOOST_FOREACH (auto originalView, views) {
+    for (auto originalView : views) {
         PersistentTable* destTable = originalView->destTable();
         destTable->decrementRefcount();
     }
@@ -386,7 +372,7 @@ void PersistentTable::truncateTable(VoltDBEngine* engine) {
     }
 
     // add matView
-    BOOST_FOREACH (auto originalView, m_views) {
+    for (auto originalView : m_views) {
         PersistentTable* destTable = originalView->destTable();
         catalog::Table* catalogViewTable = engine->getCatalogTable(destTable->name());
         PersistentTable* destEmptyTable = constructEmptyDestTable(engine,
@@ -396,7 +382,7 @@ void PersistentTable::truncateTable(VoltDBEngine* engine) {
                 originalView->getMaterializedViewInfo());
     }
 
-    BOOST_FOREACH (auto viewHandler, m_viewHandlers) {
+    for (auto viewHandler : m_viewHandlers) {
         PersistentTable* destTable = viewHandler->destTable();
         catalog::Table* catalogViewTable = engine->getCatalogTable(destTable->name());
         PersistentTable* destEmptyTable = constructEmptyDestTable(engine,
@@ -496,7 +482,7 @@ static bool hasNameIntegrity(std::string const& tableName, std::vector<std::stri
         LogManager::getThreadLogger(LOGGERID_SQL)->log(LOGLEVEL_ERROR, errMsg);
         return false;
     }
-    BOOST_FOREACH (std::string const& iName, indexNames) {
+    for (auto const& iName : indexNames) {
         if (! table->index(iName)) {
             snprintf(errMsg, sizeof(errMsg), "Integrity check failure: "
                      "table named %s failed to resolve index name %s.",
@@ -640,23 +626,53 @@ bool PersistentTable::insertTupleIntoDeltaTable(TableTuple const& source) {
 
 TableTuple PersistentTable::createTuple(TableTuple const &source){
     TableTuple target(m_schema);
-    void *address = const_cast<void*>(reinterpret_cast<void const *> (allocator().allocate()));
-    target.move(address);
+    target.move(allocator().allocate());
     target.resetHeader();
     target.copyForPersistentInsert(source);
     return target;
 }
 
-void PersistentTable::compact(void* dst, void const* src, bool frozen) {
+void PersistentTable::compact(void* dst, void const* src,
+       typename storage::CompactingChunks::compact_state state) {
+    // releasable arg is true when the table needs a finalizer,
+    // and is either: 1. not frozen; or 2. frozen, but src addr
+    // lies outside frozen region.
     m_dstTuple.move(dst);
     m_srcTuple.move(const_cast<void*>(src));
-
-    if (! frozen) {
-        // finalize dst tuple unless frozen, to save allocator from deep copy
-        decreaseStringMemCount(m_dstTuple.getNonInlinedMemorySizeForPersistentTable());
-        m_dstTuple.freeObjectColumns();
+    bool shallow = false;
+    if (m_schema->getUninlinedObjectColumnCount() == 0 || ! allocator().frozen()) {
+        memcpy(dst, src, m_tupleLength);
+        shallow = true;
+    } else {           // NOTE: finalization of dst is handled by DelayedRemover::finalize()
+        switch (state) {
+            case storage::CompactingChunks::compact_state::src_frozen:
+                /**
+                 * Deep copy needed for compaction, but since
+                 * changes is not captured, dst is
+                 * finalizable/finalized.
+                 */
+                allocatorCopier(dst, src);
+                break;
+            case storage::CompactingChunks::compact_state::both_frozen:
+                if (allocator().changed(dst)) {
+                    // When deleted tuple already had changes
+                    // tracked before, mem copy suffice
+                    memcpy(dst, src, m_tupleLength);
+                    shallow = true;
+                } else {
+                    // Otherwise, deep copy needed for compaction. Cannot
+                    // finalize either address
+                    allocatorCopier(dst, src);
+                }
+                break;
+            case storage::CompactingChunks::compact_state::unfrozen:
+                memcpy(dst, src, m_tupleLength);
+                shallow = true;
+        }
     }
-    memcpy(m_dstTuple.address(), m_srcTuple.address(), m_tupleLength);
+    if (shallow) {
+        m_dstTuple.setShallowCopyDst();
+    }
     vassert(!m_srcTuple.isPendingDeleteOnUndoRelease());
 
     for_each(m_indexes.begin(), m_indexes.end(),
@@ -670,17 +686,23 @@ void PersistentTable::compact(void* dst, void const* src, bool frozen) {
     if (m_tableStreamer != nullptr) {
         m_tableStreamer->notifyTupleMovement(m_srcTuple, m_dstTuple);
     }
-    if (! frozen) {                 // when frozen, the original tuple remains useful??
-        m_srcTuple.setActiveFalse();
-    }
+    m_srcTuple.setActiveFalse();           // snapshot ignores this flag??
 }
 
 void PersistentTable::finalizeRelease() {
     allocator().template remove_force<storage::truth>(
-            [this] (vector<pair<void*, void const*>> const& tuples) {    // shallow copy when frozen
-        for_each(tuples.cbegin(), tuples.cend(),
-                [this, frozen = allocator().frozen()] (pair<void*, void const*> const& tuple) {
-                    compact(tuple.first, tuple.second, frozen);
+            [this] (vector<pair<void*, void const*>> const& tuples,
+                typename Alloc::remove_iterator_type iter1,
+                typename Alloc::remove_iterator_type iter2) {    // deep copy when frozen
+        using ct = storage::CompactingChunks::compact_state;
+        for_each(tuples.cbegin(), iter1, [this](pair<void*, void const*> const& m) {
+                    compact(m.first, m.second, ct::both_frozen);
+                });
+        for_each(iter1, iter2, [this](pair<void*, void const*> const& m) {
+                    compact(m.first, m.second, ct::src_frozen);
+                });
+        for_each(iter2, tuples.cend(), [this](pair<void*, void const*> const& m) {
+                    compact(m.first, m.second, ct::unfrozen);
                 });
     });
     m_invisibleTuplesPendingDeleteCount = 0;
@@ -808,13 +830,13 @@ void PersistentTable::insertTupleCommon(TableTuple const& source, TableTuple& ta
     // types of constraint violation. In which case, we want to
     // clean up by calling deleteTailTupleStorage, below)
     if (insertTupleIntoDeltaTable(source)) {
-        BOOST_FOREACH (auto viewHandler, m_viewHandlers) {
+        for (auto viewHandler : m_viewHandlers) {
             viewHandler->handleTupleInsert(this, fallible);
         }
     }
 
     // handle any materialized views
-    BOOST_FOREACH (auto view, m_views) {
+    for (auto view : m_views) {
         view->processTupleInsert(target, fallible);
     }
 }
@@ -866,6 +888,7 @@ void PersistentTable::updateTupleWithSpecificIndexes(
       std::vector<TableIndex*> const& indexesToUpdate, bool fallible, bool updateDRTimestamp, bool fromMigrate) {
     UndoQuantum* uq = NULL;
     char* oldTupleData = NULL;
+    bool const replicated = isReplicatedTable();
 
     /**
      * Check for index constraint violations.
@@ -892,7 +915,7 @@ void PersistentTable::updateTupleWithSpecificIndexes(
              */
            oldTupleData = partialCopyToPool(uq->getPool(), targetTupleToUpdate.address(), targetTupleToUpdate.tupleLength());
            // We assume that only fallible and undoable UPDATEs should be propagated to the EXPORT Shadow Stream
-           if (!isReplicatedTable() || m_executorContext->getPartitionId() == 0) {
+           if (! replicated || m_executorContext->getPartitionId() == 0) {
                if (isTableWithExportUpdateOld(m_tableType)) {
                    m_shadowStream->streamTuple(targetTupleToUpdate, ExportTupleStream::STREAM_ROW_TYPE::UPDATE_OLD);
                }
@@ -936,7 +959,6 @@ void PersistentTable::updateTupleWithSpecificIndexes(
                      *uq->getPool(), drStream, drMark, rowCostForDRRecord(DR_RECORD_UPDATE)));
         }
     }
-
     if (m_tableStreamer != nullptr) {
         m_tableStreamer->notifyTupleUpdate(targetTupleToUpdate);
     }
@@ -952,7 +974,6 @@ void PersistentTable::updateTupleWithSpecificIndexes(
             if (!index->keyUsesNonInlinedMemory() &&
                     !index->checkForIndexChange(&targetTupleToUpdate, &sourceTupleWithNewValues)) {
                 indexRequiresUpdate[i] = false;
-                continue;
             } else {
                 indexRequiresUpdate[i] = true;
                 if (!index->deleteEntry(&targetTupleToUpdate)) {
@@ -983,6 +1004,7 @@ void PersistentTable::updateTupleWithSpecificIndexes(
     }
 
     if (m_schema->getUninlinedObjectColumnCount() != 0) {
+        assert(! targetTupleToUpdate.isShallowCopy());
         decreaseStringMemCount(targetTupleToUpdate.getNonInlinedMemorySizeForPersistentTable());
         increaseStringMemCount(sourceTupleWithNewValues.getNonInlinedMemorySizeForPersistentTable());
     }
@@ -1001,14 +1023,16 @@ void PersistentTable::updateTupleWithSpecificIndexes(
     std::vector<char*> newObjects;
 
     // this is the actual write of the new values
-    targetTupleToUpdate.copyForPersistentUpdate(sourceTupleWithNewValues, oldObjects, newObjects);
+    targetTupleToUpdate.copyForPersistentUpdate(
+            sourceTupleWithNewValues, oldObjects, newObjects);
 
     if (fromMigrate) {
         vassert(isTableWithMigrate(m_tableType) && m_shadowStream != nullptr);
         migratingAdd(getTableTxnId(), targetTupleToUpdate);
         // add to shadow stream if the table is partitioned or partition 0 for replicated table
-        if (!isReplicatedTable() || m_executorContext->getPartitionId() == 0) {
-            m_shadowStream->streamTuple(sourceTupleWithNewValues, ExportTupleStream::MIGRATE, doDRActions(drStream) ? drStream : nullptr);
+        if (! replicated || m_executorContext->getPartitionId() == 0) {
+            m_shadowStream->streamTuple(sourceTupleWithNewValues,
+                    ExportTupleStream::MIGRATE, doDRActions(drStream) ? drStream : nullptr);
         }
     }
 
@@ -1017,10 +1041,11 @@ void PersistentTable::updateTupleWithSpecificIndexes(
          * Create and register an undo action with copies of the "before" and "after" tuple storage
          * and the "before" and "after" object pointers for non-inlined columns that changed.
          */
-        UndoReleaseAction* undoAction = createInstanceFromPool<PersistentTableUndoUpdateAction>(
-              *uq->getPool(), oldTupleData, targetTupleToUpdate.address(), oldObjects, newObjects, &m_surgeon, someIndexGotUpdated, fromMigrate);
-        SynchronizedThreadLock::addUndoAction(isReplicatedTable(), uq, undoAction);
-    } else {
+        SynchronizedThreadLock::addUndoAction(replicated, uq,
+                createInstanceFromPool<PersistentTableUndoUpdateAction>(
+                    *uq->getPool(), oldTupleData, targetTupleToUpdate.address(),
+                    oldObjects, newObjects, &m_surgeon, someIndexGotUpdated, fromMigrate));
+    } else {              // occasionally skips finalization (but must skip when needed)
         // This is normally handled by the Undo Action's release (i.e. when there IS an Undo Action)
         // -- though maybe even that case should delegate memory management back to the PersistentTable
         // to keep the UndoAction stupid simple?
@@ -1034,16 +1059,13 @@ void PersistentTable::updateTupleWithSpecificIndexes(
     TableTuple conflict(m_schema);
     for (int i = 0; i < indexesToUpdate.size(); i++) {
         TableIndex* index = indexesToUpdate[i];
-        if (!indexRequiresUpdate[i]) {
-            continue;
-        } else if (fromMigrate && index->isMigratingIndex()) {
-           // For migrate, the hidden index should not be added back
-            continue;
-        }
-        index->addEntry(&targetTupleToUpdate, &conflict);
-        if (!conflict.isNullTuple()) {
-             throwFatalException("Failed to insert updated tuple into index in Table: %s Index %s",
-                                m_name.c_str(), index->getName().c_str());
+        if (indexRequiresUpdate[i] &&
+                ! (fromMigrate && index->isMigratingIndex())) { // For migrate, the hidden index should not be added back
+            index->addEntry(&targetTupleToUpdate, &conflict);
+            if (!conflict.isNullTuple()) {
+                throwFatalException("Failed to insert updated tuple into index in Table: %s Index %s",
+                        m_name.c_str(), index->getName().c_str());
+            }
         }
     }
 
@@ -1069,9 +1091,7 @@ void PersistentTable::updateTupleWithSpecificIndexes(
  * Then insert the new (or rather, old) value back into the indexes.
  */
 void PersistentTable::updateTupleForUndo(char* tupleWithUnwantedValues,
-                                         char* sourceTupleDataWithNewValues,
-                                         bool revertIndexes,
-                                         bool fromMigrate) {
+        char* sourceTupleDataWithNewValues, bool revertIndexes, bool fromMigrate) {
 
     TableTuple targetTupleToUpdate(tupleWithUnwantedValues, m_schema);
     TableTuple sourceTupleWithNewValues(sourceTupleDataWithNewValues, m_schema);
@@ -1087,6 +1107,7 @@ void PersistentTable::updateTupleForUndo(char* tupleWithUnwantedValues,
     }
 
     if (m_schema->getUninlinedObjectColumnCount() != 0) {
+        assert(! targetTupleToUpdate.isShallowCopy());
         decreaseStringMemCount(targetTupleToUpdate.getNonInlinedMemorySizeForPersistentTable());
         increaseStringMemCount(sourceTupleWithNewValues.getNonInlinedMemorySizeForPersistentTable());
     }
@@ -1211,12 +1232,12 @@ void PersistentTable::deleteTuple(TableTuple& target, bool fallible, bool remove
     if (insertTupleIntoDeltaTable(target) || !m_views.empty()) {
         SetAndRestorePendingDeleteFlag setPending(target);
         // for multi-table views
-        BOOST_FOREACH (auto viewHandler, m_viewHandlers) {
+        for (auto viewHandler : m_viewHandlers) {
             viewHandler->handleTupleDelete(this, fallible);
         }
 
         // This is for single table view.
-        BOOST_FOREACH (auto view, m_views) {
+        for (auto view : m_views) {
             view->processTupleDelete(target, fallible);
         }
     }
@@ -1241,7 +1262,7 @@ void PersistentTable::deleteTuple(TableTuple& target, bool fallible, bool remove
     allocator().template remove<storage::truth>(
             target.address(),
             bind(&PersistentTable::compact, this,
-                target.address(), std::placeholders::_1, allocator().frozen()));
+                target.address(), std::placeholders::_1, std::placeholders::_2));
     m_invisibleTuplesPendingDeleteCount = 0;
 }
 
@@ -1354,7 +1375,7 @@ TableTuple PersistentTable::lookupTuple(TableTuple tuple, LookupType lookupType)
 
 void PersistentTable::insertIntoAllIndexes(TableTuple* tuple) {
     TableTuple conflict(m_schema);
-    BOOST_FOREACH (auto index, m_indexes) {
+    for (auto index : m_indexes) {
         index->addEntry(tuple, &conflict);
         if (!conflict.isNullTuple()) {
             throwFatalException(
@@ -1364,7 +1385,7 @@ void PersistentTable::insertIntoAllIndexes(TableTuple* tuple) {
 }
 
 void PersistentTable::deleteFromAllIndexes(TableTuple* tuple) {
-    BOOST_FOREACH (auto index, m_indexes) {
+    for (auto index : m_indexes) {
         if (!index->deleteEntry(tuple)) {
             std::stringstream message;
             message << "Failed to delete tuple in Table: " << m_name.c_str() << " index:" << index->getName().c_str() << '\n';
@@ -1419,7 +1440,6 @@ bool PersistentTable::checkUpdateOnUniqueIndexes(TableTuple& targetTupleToUpdate
         if (index->isUniqueIndex()) {
             if (index->checkForIndexChange(&targetTupleToUpdate, &sourceTupleWithNewValues) == false)
                 continue; // no update is needed for this index
-
             // if there is a change, the new_key has to be checked
             FAIL_IF (index->exists(&sourceTupleWithNewValues)) {
                 VOLT_WARN("Unique Index '%s' complained to the update", index->debug().c_str());
@@ -1769,7 +1789,7 @@ int64_t PersistentTable::validatePartitioning(TheHashinator* hashinator, int32_t
 void PersistentTable::activateSnapshot(TableStreamType streamType) {
    if (streamType == TABLE_STREAM_SNAPSHOT) {
        std::ostringstream buffer;
-       if (m_snapIt.get() != nullptr) {
+       if (m_snapIt != nullptr) {
           buffer << "Snapshot activated when previous one is not done on " << name() << std::endl;
           LogManager::getThreadLogger(LOGGERID_HOST)->log(LOGLEVEL_WARN,buffer.str().c_str());
        }
@@ -1784,12 +1804,13 @@ void PersistentTable::activateSnapshot(TableStreamType streamType) {
 
 bool PersistentTable::stopSnapshot(TableStreamType streamType, bool forceDeactivation) {
     if (streamType == TABLE_STREAM_SNAPSHOT) {
-        if (m_snapIt.get() != nullptr) {
+        if (m_snapIt != nullptr) {
             // The iterator must go beyond the last entry to be drained.
             if (!m_snapIt->drained()) {
                 ++*m_snapIt;
             }
             if (m_snapIt->drained() || forceDeactivation) {
+                checkContext("Thawing");
                 if (isReplicatedTable()) {
                     ScopedReplicatedResourceLock scopedLock;
                     ExecuteWithMpMemory useMpMemory;
@@ -1802,9 +1823,8 @@ bool PersistentTable::stopSnapshot(TableStreamType streamType, bool forceDeactiv
                 return true;
             }
         }
-    }
-    else if (streamType == TABLE_STREAM_ELASTIC_INDEX) {
-        if (m_elasticIt.get() != nullptr && m_elasticIt->drained()) {
+    } else if (streamType == TABLE_STREAM_ELASTIC_INDEX) {
+        if (m_elasticIt && m_elasticIt->drained()) {
             m_elasticIt.reset();
         }
     }
@@ -1820,16 +1840,16 @@ bool PersistentTable::nextSnapshotTuple(TableTuple& tuple, TableStreamType strea
         }
         if (m_snapIt->drained()) {
            return false;
+        } else {
+            tuple.move(**m_snapIt);
         }
-        auto *p = **m_snapIt;
-        tuple.move(const_cast<void*>(reinterpret_cast<const void*>(p)));
     } else if (streamType == TABLE_STREAM_ELASTIC_INDEX) {
         if (m_elasticIt->drained()) {
             return false;
+        } else {
+            tuple.move(const_cast<void*>(**m_elasticIt));
+            ++*m_elasticIt;
         }
-        auto *p = **m_elasticIt;
-        tuple.move(const_cast<void*>(reinterpret_cast<const void*>(p)));
-        ++*m_elasticIt;
     }
     return true;
 }
@@ -1854,7 +1874,7 @@ void PersistentTable::computeSmallestUniqueIndex() {
     m_smallestUniqueIndex = nullptr;
     m_smallestUniqueIndexCrc = 0;
     std::string smallestUniqueIndexName = ""; // use name for determinism
-    BOOST_FOREACH (auto index, m_indexes) {
+    for (auto index : m_indexes) {
         if (index->isUniqueIndex() && !index->isPartialIndex()) {
             uint32_t indexTupleLength = index->getKeySchema()->tupleLength();
             if (!m_smallestUniqueIndex ||
@@ -1887,7 +1907,7 @@ static bool isExistingTableIndex(std::vector<TableIndex*>&, TableIndex*) {
 }
 #else
 static bool isExistingTableIndex(std::vector<TableIndex*>& indexes, TableIndex* index) {
-    BOOST_FOREACH (auto existingIndex, indexes) {
+    for (auto existingIndex : indexes) {
         if (existingIndex == index) {
             return true;
         }
@@ -1897,7 +1917,7 @@ static bool isExistingTableIndex(std::vector<TableIndex*>& indexes, TableIndex* 
 #endif
 
 TableIndex* PersistentTable::index(std::string const& name) const {
-    BOOST_FOREACH (auto index, m_indexes) {
+    for (auto index : m_indexes) {
         if (index->getName().compare(name) == 0) {
             return index;
         }
@@ -1905,7 +1925,7 @@ TableIndex* PersistentTable::index(std::string const& name) const {
     std::stringstream errorString;
     errorString << "Could not find Index with name " << name << " among {";
     char const* sep = "";
-    BOOST_FOREACH (auto index, m_indexes) {
+    for (auto index : m_indexes) {
         errorString << sep << index->getName();
         sep = ", ";
     }
@@ -1973,9 +1993,9 @@ void PersistentTable::setPrimaryKeyIndex(TableIndex* index) {
 
 void PersistentTable::configureIndexStats() {
     // initialize stats for all the indexes for the table
-    BOOST_FOREACH (auto index, m_indexes) {
-        index->getIndexStats()->configure(index->getName() + " stats",
-                                          name());
+    for (auto index : m_indexes) {
+        index->getIndexStats()->configure(
+                index->getName() + " stats", name());
     }
 }
 
@@ -2047,7 +2067,7 @@ void PersistentTable::polluteViews() {
     // use the current table as one of their sources need to be updated.
     //   If the current table is a view target table, we need to refresh the list
     // of tracked indices so that the data in the table and its indices can be in sync.
-    BOOST_FOREACH (auto mvHandler, m_viewHandlers) {
+    for (auto mvHandler : m_viewHandlers) {
         mvHandler->pollute();
     }
     if (m_mvHandler) {
@@ -2114,7 +2134,7 @@ bool PersistentTable::deleteMigratedRows(int64_t deletableTxnId) {
    MigratingBatch& batch = currIt->second;
    // Delete the first batch which has a sphandle <= deletableTxnId. Other batches with sphandle <= deletableTxnId
    // will be deleted next round, one batch at a time
-   BOOST_FOREACH (auto toDelete, batch) {
+   for (auto toDelete : batch) {
       targetTuple.move(toDelete);
       vassert(ValuePeeker::peekBigInt(targetTuple.getHiddenNValue(getMigrateColumnIndex())) == currIt->first);
       deleteTuple(targetTuple, true, false);

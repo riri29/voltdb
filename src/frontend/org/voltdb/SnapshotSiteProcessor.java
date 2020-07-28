@@ -708,7 +708,7 @@ public class SnapshotSiteProcessor {
                 m_extraSnapshotData = null;
                 Thread.UncaughtExceptionHandler eh = new Thread.UncaughtExceptionHandler() {
                     public void uncaughtException(Thread th, Throwable ex) {
-                        SNAP_LOG.warn("Error running snapshot completion task", ex);
+                        SNAP_LOG.warn("Error running snapshot completion task" + ex.getCause(), ex);
                     }
                 };
                 final Thread terminatorThread = new Thread("Snapshot terminator") {
@@ -752,7 +752,7 @@ public class SnapshotSiteProcessor {
                                 try {
                                     r.run();
                                 } catch (Exception e) {
-                                    SNAP_LOG.error("Error running snapshot completion task", e);
+                                    SNAP_LOG.error("Error running snapshot completion task: " + e.getCause(), e);
                                 }
                             }
                         } finally {

@@ -15,8 +15,7 @@
  * along with VoltDB.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef VOLTDB_EE_COMMON_LOADTABLECALLER_H_
-#define VOLTDB_EE_COMMON_LOADTABLECALLER_H_
+#pragma once
 
 #include "stdint.h"
 #include "common/debuglog.h"
@@ -82,7 +81,7 @@ public:
     /**
      * @return the expected column count of the table being loaded for the given schema
      */
-    inline uint16_t getExpectedColumnCount(TupleSchema const*schema) const {
+    inline uint16_t getExpectedColumnCount(TupleSchema const* schema) const {
         uint16_t hiddenColumnCount = schema->hiddenColumnCount();
 
         if (hiddenColumnCount > 0) {
@@ -136,11 +135,9 @@ private:
      */
     LoadTableCaller(Id id, bool returnUniqueViolations, bool shouldDRStream, bool ignoreTupleLimit) :
         m_id(id), m_returnUniqueViolations(returnUniqueViolations), m_shouldDRStream(shouldDRStream),
-        m_ignoreTupleLimit(ignoreTupleLimit)
-    {
+        m_ignoreTupleLimit(ignoreTupleLimit) {
         vassert(id >=0 && id < ID_COUNT);
     }
 };
 
 }
-#endif /* VOLTDB_EE_COMMON_LOADTABLECALLER_H_ */

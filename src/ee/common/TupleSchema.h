@@ -15,8 +15,7 @@
  * along with VoltDB.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef TUPLESCHEMA_H_
-#define TUPLESCHEMA_H_
+#pragma once
 
 #include <common/debuglog.h>
 #include <cstring>
@@ -416,4 +415,3 @@ inline void TupleSchema::setUninlinedObjectColumnInfoIndex(uint16_t objectColumn
 }
 } // namespace voltdb
 
-#endif // TUPLESCHEMA_H_
