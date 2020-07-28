@@ -1,6 +1,10 @@
 Automated Tests of the VMC (VoltDB Management Center), Using GEB
 ================================================================
 
+# Just another fake change, to create a new branch that can be
+# used to test the use of the new 'internal' repo on Jenkins:
+# see ENG-19756.
+
 This file describes the GEB automated tests of the VMC (VoltDB Management
 Center), which is the new web UI, replacing the old Web Studio. These automated
 tests are believed to provide more than the level of coverage of the old
