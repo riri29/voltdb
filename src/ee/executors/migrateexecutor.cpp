@@ -130,9 +130,8 @@ bool MigrateExecutor::p_execute(const NValueArray &params) {
                 // The first column in the input table will be the address of a
                 // tuple to update in the target table.
                 void *target_address = m_inputTuple.getNValue(0).castAsAddress();
-                targetTuple.move(target_address);
 
-                if (targetTuple.getHiddenNValue(targetTable->getMigrateColumnIndex()).isNull()) {
+                if (targetTuple.move(target_address).getHiddenNValue(targetTable->getMigrateColumnIndex()).isNull()) {
                     TableTuple &tempTuple = targetTable->copyIntoTempTuple(targetTuple);
                     targetTable->updateTupleWithSpecificIndexes(targetTuple, tempTuple,
                                                                 indexesToUpdate, true, false, true);

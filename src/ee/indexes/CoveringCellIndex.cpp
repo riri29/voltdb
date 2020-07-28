@@ -167,8 +167,7 @@ void CoveringCellIndex::addEntryDo(const TableTuple *tuple,
 }
 
 bool CoveringCellIndex::moveToCoveringCell(const TableTuple* searchKey,
-                                           IndexCursor &cursor) const
-{
+                                           IndexCursor &cursor) const {
     cursor.m_forward = true;
 
     GeographyPointValue pt = ValuePeeker::peekGeographyPointValue(searchKey->getNValue(0));
@@ -335,8 +334,7 @@ bool CoveringCellIndex::checkValidityForTest(PersistentTable* table, std::string
     storage::until<PersistentTable::txn_iterator>(table->allocator(),
                            [this, &tuple, &ret, &reasonInvalid](void* p) {
         void *tupleAddress = const_cast<void*>(reinterpret_cast<void const *>(p));
-        tuple.move(tupleAddress);
-        NValue nval = tuple.getNValue(m_columnIndex);
+        NValue nval = tuple.move(tupleAddress).getNValue(m_columnIndex);
         TupleMapIterator tupleMapIt = m_tupleEntries.find(setKeyFromTuple(&tuple));
         if (tupleMapIt.isEnd() && !(nval.isNull())) {
            *reasonInvalid = "Found non-null polygon not in tuple map";

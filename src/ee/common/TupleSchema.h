@@ -35,6 +35,7 @@
 namespace voltdb {
 
 class AbstractExpression;
+class TableTuple;
 /**
  * Represents the schema of a tuple or table row. Used to define table rows, as
  * well as index keys. Note: due to arbitrary size embedded array data, this class
@@ -145,6 +146,13 @@ public:
 
     /** Static factory method to destroy a TupleSchema object. Set to null after this call */
     static void freeTupleSchema(TupleSchema const*schema);
+
+    /**
+     * Build a table tuple with given schema and generator.
+     * Skips any hidden columns.
+     */
+    TableTuple& build_with(TableTuple&,
+            std::function<NValue(size_t, ValueType, ColumnInfo const&)> const&) const;
 
     /** Return the number of (visible) columns in the schema for the tuple. */
     inline uint16_t columnCount() const;
@@ -413,5 +421,6 @@ inline uint16_t TupleSchema::getUninlinedObjectColumnInfoIndex(const int objectC
 inline void TupleSchema::setUninlinedObjectColumnInfoIndex(uint16_t objectColumnIndex, uint16_t objectColumnInfoIndex) {
     reinterpret_cast<uint16_t*>(m_data)[objectColumnIndex] = objectColumnInfoIndex;
 }
+
 } // namespace voltdb
 

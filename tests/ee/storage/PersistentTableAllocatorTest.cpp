@@ -36,6 +36,7 @@
 #include "common/TupleOutputStream.h"
 #include "common/TupleOutputStreamProcessor.h"
 #include "common/TupleSchema.h"
+#include "common/TupleSchemaBuilder.h"
 #include "common/types.h"
 #include "common/ValueFactory.hpp"
 #include "common/ValuePeeker.hpp"
@@ -55,7 +56,7 @@ using namespace voltdb;
 using namespace voltdb::storage;
 using namespace std;
 using PersistentTableAllocatorTest = Test;
-
+char message[512];
 /**
  * Drop-in replacements for server configuration, and table
  * schema, partition info, etc.
@@ -73,6 +74,35 @@ TupleSchema const* Config1::SCHEMA = TupleSchemaBuilder(3)
     .setColumnAtIndex(2, ValueType::tGEOGRAPHY, 2048, false)
     .build();
 
+struct Indexes {
+    static TableIndex* createGeospatialIndex(TupleSchema const* schema, char const* name, int32_t col_index) {
+        return TableIndexFactory::getInstance(
+                TableIndexScheme(name, COVERING_CELL_INDEX,
+                    std::vector<int32_t>(1, col_index),
+                    std::vector<AbstractExpression*>{},
+                    nullptr,  // predicate
+                    false, // unique
+                    false, // countable
+                    false, // migrating
+                    "",    // expression as text
+                    "",    // predicate as text
+                    schema));
+    }
+    static TableIndex* createPrimaryKeyIndex(TupleSchema const* schema, char const* name, int32_t col_index) {
+        return TableIndexFactory::getInstance(
+                TableIndexScheme(name, BALANCED_TREE_INDEX,
+                    std::vector<int32_t>(1, col_index),
+                    std::vector<AbstractExpression*>{},
+                    nullptr,  // predicate
+                    true, // unique
+                    false, // countable
+                    false, // migrating
+                    "",    // expression as text
+                    "",    // predicate as text
+                    schema));
+    }
+};
+
 /**
  * Realistic tests using persistent table for correctness of
  * snapshot process
@@ -85,6 +115,7 @@ class ProcPersistenTable {
 
     static char SIGNATURE[20];
     static NValue generate(size_t, ValueType, size_t limit);
+    void insert_row(size_t);
 public:
     ProcPersistenTable() {
         int const partitionId = 0;
@@ -117,12 +148,27 @@ public:
                         false,                     // is materialized
                         0)));                      // partition column
     }
-    size_t insert() {
-        auto tempTuple = m_table->tempTuple();
+    void insert(size_t nrows) {
+        for (auto i = 0lu; i < nrows; ++i) {
+            insert_row(i);
+        }
     }
+    PersistentTable& table() noexcept;
+    PersistentTable const& table() const noexcept;
+    static size_t id_of(TableTuple const&);
+    static bool valid(TableTuple const&, size_t);
+    static bool valid(TableTuple const&);
 };
 
 template<typename Config> char ProcPersistenTable<Config>::SIGNATURE[20] = {};
+
+template<typename Config> PersistentTable& ProcPersistenTable<Config>::table() noexcept {
+    return *m_table;
+}
+
+template<typename Config> PersistentTable const& ProcPersistenTable<Config>::table() const noexcept {
+    return *m_table;
+}
 
 template<typename Config> NValue ProcPersistenTable<Config>::generate(
         size_t id, ValueType vt, size_t limit) {
@@ -142,17 +188,88 @@ template<typename Config> NValue ProcPersistenTable<Config>::generate(
             }
         case ValueType::tGEOGRAPHY:
             {
-                string r("POLYGON((").append(to_string(id)).append(" 0, ");
-                for (auto i = 1lu; i < 400; ++i) {
-                    r.append(to_string(i)).append(" 0, ");
+                string r("POLYGON((");
+                // long/lat must lie in [-180, 180]
+                long lid = id % 360 - 180;
+                r.append(to_string(lid)).append(" 0, ");
+                for (auto i = 1l;
+                        i < limit / 25;            // magic number 25 to avoid polygon too large error
+                        ++i) {
+                    r.append(to_string(i % 360 - 180)).append(" 0, ");
                 }
-                r.append(to_string(id)).append(" 0))");
+                r.append(to_string(lid)).append(" 0))");
+                return ValueFactory::getTempStringValue(r)
+                    .callUnary<FUNC_VOLT_POLYGONFROMTEXT>();
             }
+        default:
+            throw logic_error("Unhandled column type");
     }
 }
 
+template<typename Config> void ProcPersistenTable<Config>::insert_row(size_t id) {
+    m_table->insertTuple(
+            Config::SCHEMA->build_with(
+                m_table->tempTuple(),
+                [](size_t id, ValueType vt, TupleSchema::ColumnInfo const& info) -> NValue {
+                    return ProcPersistenTable<Config>::generate(id, vt, info.length);
+                }));
+}
+
+template<typename Config> size_t ProcPersistenTable<Config>::id_of(TableTuple const& tuple) {
+    bool found = false;
+    auto col = 0l;
+    for (auto i = 0l; i < Config::SCHEMA->columnCount(); ++i) {
+        if (Config::SCHEMA->columnType(i) == ValueType::tINTEGER) {
+            if (found) {
+                snprintf(message, sizeof message,
+                        "Ambiguous: schema <%s> contains multiple INTEGER columns",
+                        Config::SCHEMA->debug().c_str());
+                throw logic_error(message);
+            } else {
+                found = true;
+                col = i;
+            }
+        }
+    }
+    if (! found) {
+        snprintf(message, sizeof message,
+                "Schema <%s> does not contain any INTEGER column", Config::SCHEMA->debug().c_str());
+        throw logic_error(message);
+    } else {
+        return col;
+    }
+}
+
+template<typename Config> bool ProcPersistenTable<Config>::valid(TableTuple const& tuple, size_t id) {
+    if (! Config::SCHEMA->equals(tuple.getSchema())) {
+        return false;
+    } else {
+        bool matched = true;
+        for (auto i = 0l; i < Config::SCHEMA->columnCount() && matched; ++i) {
+            matched &= ! tuple.getNValue(i).compareNullAsMax(
+                        generate(i, Config::SCHEMA->columnType(i),
+                            Config::SCHEMA->getColumnInfo(i)->length));
+        }
+        return matched;
+    }
+}
+
+template<typename Config> inline bool ProcPersistenTable<Config>::valid(TableTuple const& tuple) {
+    return valid(tuple, id_of(tuple));
+}
+
 TEST_F(PersistentTableAllocatorTest, Dummy) {
-    ProcPersistenTable t;
+    ProcPersistenTable<Config1> t;
+    t.insert(50);
+    size_t i = 0;
+    ASSERT_FALSE(storage::until<typename PersistentTable::txn_const_iterator>(
+                static_cast<typename PersistentTable::Alloc const&>(t.table().allocator()),
+                [&i, &t](void const* p) { // until current tuple is not valid
+                    ++i;
+                    return ! ProcPersistenTable<Config1>::valid(
+                            t.table().tempTuple().move(const_cast<void*>(p)));
+                }));
+    ASSERT_EQ(50lu, i);
 }
 
 int main() {

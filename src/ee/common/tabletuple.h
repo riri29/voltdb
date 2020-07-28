@@ -128,34 +128,38 @@ public:
      * Set the tuple to point toward a given address in a table's
      * backing store
      */
-    inline void move(void *address) {
+    inline TableTuple& move(void* address) {
         vassert(m_schema != nullptr || address == nullptr);
-        m_data = reinterpret_cast<char*> (address);
+        m_data = reinterpret_cast<char*>(address);
+        return *this;
     }
 
     /**
      * Set the tuple to point toward a given address and initialize the tuple header to be used as a new tuple
      */
-    inline void moveAndInitialize(void *address) {
+    inline TableTuple& moveAndInitialize(void *address) {
         move(address);
         resetHeader();
+        return *this;
     }
 
-    inline void moveNoHeader(void *address) {
+    inline TableTuple& moveNoHeader(void *address) {
         vassert(m_schema);
         // isActive() and all the other methods expect a header
         m_data = reinterpret_cast<char*> (address) - TUPLE_HEADER_SIZE;
+        return *this;
     }
 
     // Used to wrap read only tuples in indexing code. TODO Remove
     // constedeness from indexing code so this cast isn't necessary.
-    inline void moveToReadOnlyTuple(const void *address) {
+    inline TableTuple& moveToReadOnlyTuple(const void *address) {
         vassert(m_schema);
         vassert(address);
         //Necessary to move the pointer back TUPLE_HEADER_SIZE
         // artificially because Tuples used as keys for indexes do not
         // have the header.
         m_data = reinterpret_cast<char*>(const_cast<void*>(address)) - TUPLE_HEADER_SIZE;
+        return *this;
     }
 
     /** Get the address of this tuple in the table's backing store */
@@ -496,7 +500,7 @@ public:
     void copy(const TableTuple &source);
 
     /** this does set NULL in addition to clear string count.*/
-    void setAllNulls();
+    TableTuple& setAllNulls();
 
     /** When a large temp table block is reloaded from disk, we need to
         update all addresses pointing to non-inline data. */
@@ -865,9 +869,7 @@ class StandAloneTupleStorage {
             // will zero-initialize the allocated memory.
             m_tupleStorage.reset(new char[m_tupleSchema->tupleLength() + TUPLE_HEADER_SIZE]());
             m_tuple.m_schema = m_tupleSchema;
-            m_tuple.move(m_tupleStorage.get());
-            m_tuple.setAllNulls();
-            m_tuple.setActiveTrue();
+            m_tuple.move(m_tupleStorage.get()).setAllNulls().setActiveTrue();
             m_tuple.setInlinedDataIsVolatileTrue();
         }
 
@@ -1210,7 +1212,7 @@ inline bool TableTuple::equalsNoSchemaCheck(const TableTuple &other,
     return true;
 }
 
-inline void TableTuple::setAllNulls() {
+inline TableTuple& TableTuple::setAllNulls() {
     vassert(m_schema);
     vassert(m_data);
 
@@ -1225,6 +1227,7 @@ inline void TableTuple::setAllNulls() {
         NValue value = NValue::getNullValue(hiddenColumnInfo->getVoltType());
         setHiddenNValue(hiddenColumnInfo, value);
     }
+    return *this;
 }
 
 inline void TableTuple::relocateNonInlinedFields(std::ptrdiff_t offset) {

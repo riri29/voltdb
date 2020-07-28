@@ -217,10 +217,8 @@ public:
  *
  * @see TableIndexFactory
  */
-class TableIndex
-{
+class TableIndex {
     friend class TableIndexFactory;
-
 public:
     virtual ~TableIndex();
 
@@ -431,8 +429,7 @@ public:
      * @Return great than rank value as "m_entries.size() + 1"  for given
      * searchKey that is larger than all keys.
      */
-    virtual int64_t getCounterGET(const TableTuple *searchKey, bool isUpper, IndexCursor& cursor) const
-    {
+    virtual int64_t getCounterGET(const TableTuple *searchKey, bool isUpper, IndexCursor& cursor) const {
         throwFatalException("Invoked non-countable TableIndex virtual method getCounterGET which has no implementation");
     }
     /**

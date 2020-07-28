@@ -15,8 +15,7 @@
  * along with VoltDB.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef COVERINGCELLINDEX_H
-#define COVERINGCELLINDEX_H
+#pragma once
 
 #include <array>
 
@@ -182,19 +181,12 @@ class CoveringCellIndex : public TableIndex {
      * A structure used to report stats about this index for testing.
      */
     struct StatsForTest {
-        int32_t numPolygons;
-        int32_t numCells;
+        int32_t numPolygons = 0;
+        int32_t numCells = 0;
+        double polygonsArea = 0;
+        double cellsArea = 0;
 
-        double polygonsArea;
-        double cellsArea;
-
-        StatsForTest()
-        : numPolygons(0)
-        , numCells(0)
-        , polygonsArea(0.0)
-        , cellsArea(0.0)
-        {
-        }
+        StatsForTest() = default;
     };
 
     /**
@@ -256,4 +248,3 @@ class CoveringCellIndex : public TableIndex {
 
 } // end namespace voltdb
 
-#endif

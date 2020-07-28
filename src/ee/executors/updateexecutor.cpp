@@ -174,7 +174,6 @@ bool UpdateExecutor::p_execute(const NValueArray &params) {
             while (input_iterator.next(m_inputTuple)) {
                 // The first column in the input table will be the address of a
                 // tuple to update in the target table.
-                targetTuple.move(m_inputTuple.getNValue(0).castAsAddress());
 
                 // Loop through INPUT_COL_IDX->TARGET_COL_IDX mapping and only update
                 // the values that we need to. The key thing to note here is that we
@@ -183,7 +182,8 @@ bool UpdateExecutor::p_execute(const NValueArray &params) {
                 // bringing garbage with it, we're only going to copy what we really
                 // need to into the target tuple.
                 //
-                TableTuple &tempTuple = targetTable->copyIntoTempTuple(targetTuple);
+                TableTuple &tempTuple = targetTable->copyIntoTempTuple(
+                        targetTuple.move(m_inputTuple.getNValue(0).castAsAddress()));
                 for (int map_ctr = 0; map_ctr < m_inputTargetMapSize; map_ctr++) {
                     try {
                         tempTuple.setNValue(m_inputTargetMap[map_ctr].second,

@@ -124,10 +124,9 @@ bool DeleteExecutor::p_execute(const NValueArray &params) {
                     // us the trouble of having to do an index lookup
                     //
                     void *targetAddress = m_inputTuple.getNValue(0).castAsAddress();
-                    targetTuple.move(targetAddress);
 
                     // Delete from target table
-                    targetTable->deleteTuple(targetTuple, true);
+                    targetTable->deleteTuple(targetTuple.move(targetAddress), true);
                 }
                 modified_tuples = m_inputTable->tempTableTupleCount();
                 VOLT_TRACE("Deleted %d rows from table : %s with %d active, %d visible, %d allocated",

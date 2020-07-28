@@ -100,8 +100,7 @@ void* PersistentTable::allocatorCopier(void*__restrict__ dst, void const*__restr
     checkContext("Copying");
     TableTuple srcTuple(m_schema), dstTuple(m_schema);
     srcTuple.move(const_cast<void*>(src));
-    dstTuple.move(dst);
-    dstTuple.resetHeader();
+    dstTuple.move(dst).resetHeader();
     dstTuple.copyForPersistentInsert(srcTuple);
     return dst;
 }
@@ -221,8 +220,7 @@ void PersistentTable::deleteAllTuples() {
     TableTuple inputTuple(schema());
     storage::for_each<PersistentTable::txn_iterator>(
             allocator(), [this, &inputTuple](void* p) {
-                inputTuple.move(p);
-                if (!inputTuple.isPendingDeleteOnUndoRelease()) {
+                if (! inputTuple.move(p).isPendingDeleteOnUndoRelease()) {
                     deleteTuple(inputTuple);
                 }
             });
@@ -615,8 +613,7 @@ bool PersistentTable::insertTupleIntoDeltaTable(TableTuple const& source) {
         txn_const_iterator iter = m_deltaTable->allocator();
         void *tupleAddress = const_cast<void*>(reinterpret_cast<void const *>(*iter));
         TableTuple inputTuple(this->schema());
-        inputTuple.move(tupleAddress);
-        m_deltaTable->deleteDeltaTableTuple(inputTuple);
+        m_deltaTable->deleteDeltaTableTuple(inputTuple.move(tupleAddress));
     }
 
     TableTuple targetForDelta = m_deltaTable->createTuple(source);
@@ -626,8 +623,7 @@ bool PersistentTable::insertTupleIntoDeltaTable(TableTuple const& source) {
 
 TableTuple PersistentTable::createTuple(TableTuple const &source){
     TableTuple target(m_schema);
-    target.move(allocator().allocate());
-    target.resetHeader();
+    target.move(allocator().allocate()).resetHeader();
     target.copyForPersistentInsert(source);
     return target;
 }
@@ -808,20 +804,19 @@ void PersistentTable::insertTupleCommon(TableTuple const& source, TableTuple& ta
         /*
          * Create and register an undo action.
          */
-        UndoQuantum *uq = ExecutorContext::currentUndoQuantum();
+        auto *uq = ExecutorContext::currentUndoQuantum();
         if (uq) {
-            UndoReleaseAction* undoAction = createInstanceFromPool<PersistentTableUndoInsertAction>(
-                  *uq->getPool(), target.address(), &m_surgeon);
-            SynchronizedThreadLock::addUndoAction(isReplicatedTable(), uq, undoAction);
+            SynchronizedThreadLock::addUndoAction(isReplicatedTable(), uq,
+                    createInstanceFromPool<PersistentTableUndoInsertAction>(
+                        *uq->getPool(), target.address(), &m_surgeon));
             if (isTableWithExportInserts(m_tableType)) {
                 vassert(m_shadowStream != nullptr);
-
                 // insert to partitioned table or partition id 0 for replicated
                 if (!isReplicatedTable() || m_executorContext->getPartitionId() == 0) {
                      m_shadowStream->streamTuple(target, ExportTupleStream::STREAM_ROW_TYPE::INSERT);
                 }
             }
-        }
+        }              // else branch is valid, in tests.
     }
 
     // Insert the tuple into the delta table first.
@@ -847,8 +842,7 @@ void PersistentTable::insertTupleCommon(TableTuple const& source, TableTuple& ta
  */
 void PersistentTable::insertTupleForUndo(char* tuple) {
     TableTuple target(m_schema);
-    target.move(tuple);
-    target.setPendingDeleteOnUndoReleaseFalse();
+    target.move(tuple).setPendingDeleteOnUndoReleaseFalse();
     --m_invisibleTuplesPendingDeleteCount;
     --m_batchDeleteTupleCount;
 
@@ -1272,8 +1266,7 @@ void PersistentTable::deleteTuple(TableTuple& target, bool fallible, bool remove
  */
 void PersistentTable::deleteTupleRelease(char* tuple) {
     TableTuple target(m_schema);
-    target.move(tuple);
-    target.setPendingDeleteOnUndoReleaseFalse();
+    target.move(tuple).setPendingDeleteOnUndoReleaseFalse();
     if (m_tableStreamer != nullptr) {
         m_tableStreamer->notifyTupleDelete(target);
     }
@@ -1346,8 +1339,7 @@ TableTuple PersistentTable::lookupTuple(TableTuple tuple, LookupType lookupType)
     storage::until<PersistentTable::txn_iterator>(allocator(), [&tuple, &lookupType, this, tuple_length, &matchedTuple](void* p) {
         void *tupleAddress = const_cast<void*>(reinterpret_cast<void const *>(p));
         TableTuple tableTuple(this->schema());
-        tableTuple.move(tupleAddress);
-        if (!tableTuple.isPendingDeleteOnUndoRelease()) {
+        if (! tableTuple.move(tupleAddress).isPendingDeleteOnUndoRelease()) {
             bool matched = false;
             if (lookupType == LOOKUP_FOR_DR && this->schema()->hiddenColumnCount()) {
                 // Force column compare for DR so we can easily use the filter
@@ -1578,8 +1570,7 @@ void PersistentTable::loadTuplesForLoadTable(SerializeInputBE &serialInput, Pool
     for (int i = 0; i < tupleCount; ++i) {
         TableTuple target(m_schema);
         void *address = const_cast<void*>(reinterpret_cast<void const *> (allocator().allocate()));
-        target.move(address);
-        target.resetHeader();
+        target.move(address).resetHeader();
         target.setActiveTrue();
         target.setPendingDeleteFalse();
         target.setPendingDeleteOnUndoReleaseFalse();
@@ -2160,8 +2151,7 @@ void PersistentTable::serializeTo(SerializeOutput &serialOutput) {
     storage::for_each<PersistentTable::txn_iterator>(allocator(),
                     [&serialOutput, &written_count, &tuple](void* p) {
           void *tupleAddress = const_cast<void*>(reinterpret_cast<void const *>(p));
-          tuple.move(tupleAddress);
-          tuple.serializeTo(serialOutput);
+          tuple.move(tupleAddress).serializeTo(serialOutput);
           ++written_count;
       });
     vassert(written_count == activeTupleCount());
@@ -2182,8 +2172,7 @@ void PersistentTable::serializeToWithoutTotalSize(SerializeOutput &serialOutput)
     storage::for_each<PersistentTable::txn_iterator>(allocator(),
                         [&serialOutput, &written_count, &tuple](void* p) {
          void *tupleAddress = const_cast<void*>(reinterpret_cast<void const *>(p));
-         tuple.move(tupleAddress);
-         tuple.serializeTo(serialOutput);
+         tuple.move(tupleAddress).serializeTo(serialOutput);
          ++written_count;
     });
     vassert(written_count == activeTupleCount());
@@ -2220,8 +2209,7 @@ void PersistentTable::loadTuplesFromNoHeader(SerializeInputBE &serialInput,
     for (int i = 0; i < tupleCount; ++i) {
         TableTuple target(m_schema);
         void *address = const_cast<void*>(reinterpret_cast<void const *> (allocator().allocate()));
-        target.move(address);
-        target.resetHeader();
+        target.move(address).resetHeader();
         target.setActiveTrue();
         target.setPendingDeleteFalse();
         target.setPendingDeleteOnUndoReleaseFalse();

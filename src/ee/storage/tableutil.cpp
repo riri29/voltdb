@@ -67,9 +67,8 @@ bool tableutil::getRandomTuple(const voltdb::PersistentTable* table, voltdb::Tab
         storage::until<PersistentTable::txn_const_iterator>(table->allocator(),
                                    [&out, &count, idx](const void* p) {
               void *tupleAddress = const_cast<void*>(reinterpret_cast<void const *>(p));
-              out.move(tupleAddress);
-              if (out.isPendingDeleteOnUndoRelease()) {
-                  out.move(NULL);
+              if (out.move(tupleAddress).isPendingDeleteOnUndoRelease()) {
+                  out.move(nullptr);
                   return false;
               }
               if (count == idx) {

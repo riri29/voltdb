@@ -16,6 +16,7 @@
  */
 
 #include <sstream>
+#include "common/tabletuple.h"
 #include "common/TupleSchema.h"
 #include "common/NValue.hpp"
 #include "expressions/abstractexpression.h"
@@ -455,6 +456,14 @@ uint16_t TupleSchema::countUninlineableObjectColumns(
         }
     }
     return numUninlineableObjects;
+}
+
+TableTuple& TupleSchema::build_with(TableTuple& builder,
+        std::function<NValue(size_t, ValueType, ColumnInfo const&)> const& gen) const {
+    for (auto i = 0u; i < columnCount(); ++i) {
+        builder.setNValue(i, gen(i, columnType(i), *getColumnInfo(i)));
+    }
+    return builder;
 }
 
 } // namespace voltdb

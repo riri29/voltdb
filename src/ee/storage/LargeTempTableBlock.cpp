@@ -47,8 +47,7 @@ bool LargeTempTableBlock::insertTuple(const TableTuple& source) {
     }
 
     TableTuple target(source.getSchema());
-    target.move(m_tupleInsertionPoint);
-    target.resetHeader();
+    target.move(m_tupleInsertionPoint).resetHeader();
     target.copyForPersistentInsert(source, this);
     target.setActiveTrue();
 

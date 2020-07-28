@@ -678,8 +678,7 @@ TableTuple& AggregateExecutorBase::swapWithInprogressGroupByKeyTuple() {
     void* recycledStorage = m_inProgressGroupByKeyTuple.address();
     void* inProgressStorage = nextGroupByKeyTuple.address();
     m_inProgressGroupByKeyTuple.move(inProgressStorage);
-    nextGroupByKeyTuple.move(recycledStorage);
-    return nextGroupByKeyTuple;
+    return nextGroupByKeyTuple.move(recycledStorage);
 }
 
 TableTuple AggregateExecutorBase::p_execute_init(
