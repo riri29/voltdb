@@ -50,6 +50,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLException;
 
 import org.HdrHistogram_voltpatches.AbstractHistogram;
 import org.apache.zookeeper_voltpatches.CreateMode;
@@ -378,7 +379,9 @@ public class ClientInterface implements SnapshotDaemon.DaemonInitiator {
                         }
                         sslEngine.setEnabledCipherSuites(intersection.toArray(new String[0]));
                         // blocking needs to be false for handshaking.
-                        boolean handshakeStatus;
+
+                        boolean handshakeStatus = false;
+                        String handshakeErr = null;
 
                         try {
                             // m_socket.configureBlocking(false);
@@ -395,15 +398,18 @@ public class ClientInterface implements SnapshotDaemon.DaemonInitiator {
                             remnant = handshaker.getRemnant();
 
                         } catch (NotSslRecordException e) {
-                            closeSocket();
-                            // A common cause is that the client simply did not use SSL (e.g., forgot to type --ssl)
-                            networkLog.warn(String.format("Rejected accepting new connection from %s, SSL handshake failed: %s",
-                                                          remoteAddr, e.getMessage()));
-                            return;
+                            handshakeErr = String.format("Rejected accepting new connection from %s, client not using TLS/SSL",
+                                                         remoteAddr);
+                        } catch (SSLException e) {
+                            handshakeErr = String.format("Rejected accepting new connection from %s, SSL handshake failed: %s",
+                                                         remoteAddr, e.getMessage());
                         } catch (IOException e) {
+                            handshakeErr = String.format("Rejected accepting new connection from %s, error during SSL handshake: %s",
+                                                         remoteAddr, e.getMessage());
+                        }
+                        if (handshakeErr != null) {
                             closeSocket();
-                            networkLog.warn(String.format("Rejected accepting new connection from %s, SSL handshake failed: %s",
-                                                          remoteAddr, e.getMessage()), e);
+                            networkLog.warn(handshakeErr);
                             return;
                         }
                         if (!handshakeStatus) {
