@@ -56,7 +56,7 @@ using namespace voltdb;
 using namespace voltdb::storage;
 using namespace std;
 using PersistentTableAllocatorTest = Test;
-char message[512];
+static char message[512];
 
 template<typename T>
 vector<T> random_sample(vector<T> const& pool, size_t n) {
@@ -111,7 +111,7 @@ struct Config1 {
     static vector<string> const COLUMN_NAMES;
     static TupleSchema const* SCHEMA;
     static array<TableIndex*, 3> const INDICES;
-    static int const PK_INDEX_INDEX = -1;           // index into INDICES that is primary key
+    static int const PK_INDEX_INDEX = 0;           // index into INDICES that is primary key
 };
 vector<string> const Config1::COLUMN_NAMES{"ID", "STRING", "GEOGRAPHY"};
 
@@ -125,6 +125,286 @@ array<TableIndex*, 3> const Config1::INDICES{
     Indexes::createIndex(Config1::SCHEMA, false, "vc", 1),
     Indexes::createGeospatialIndex(Config1::SCHEMA, "pol_index", 2)
 };
+
+/**
+ * Table operation sequence, delimited by space, e.g.
+ * I50 D2 U5 I3 F D15 U3 S5 D6 S T U3 C ...
+ * Meaning:
+ * I[number]: insert [number] tuples
+ * D[number]: delete [number] tuples at random spot
+ * U: update one tuple at random spot
+ * F: freeze
+ * T: thaw
+ * C: clear
+ * S[number]: stream [number] tuples of frozen view (requires to be in frozen state)
+ * S: stream all/rest tuples of frozen view (requires to be in frozen state)
+ *
+ * A sequence always starts with given number of active tuples,
+ * and is not frozen at the start time.
+ */
+struct Spec {
+    enum op_type {
+        insertion, deletion, update, freeze, thaw, clear, stream
+    };
+    using spec_type = vector<pair<op_type, size_t>>;
+    Spec(size_t init, string const& s): m_arg(parse(s)), m_normalized(normalize(init, m_arg)) {}
+    spec_type operator()() const noexcept {
+        return m_normalized;
+    }
+    string to_string() const noexcept {
+        return deparse(m_normalized);
+    }
+    static Spec generate(size_t, size_t, unsigned&);
+private:
+    spec_type const m_arg;
+    spec_type const m_normalized;
+    static random_device rd;
+    static spec_type parse(string const&);
+    static string deparse(spec_type const&);
+    static spec_type normalize(size_t, spec_type const&);
+};
+random_device Spec::rd{};
+
+typename Spec::spec_type Spec::parse(string const& src) {
+    vector<string> delimited;
+    for (auto pos = 0;;) {
+        auto const n = src.find_first_of(" ", pos);
+        if (n != string::npos) {
+            delimited.emplace_back(src.substr(pos, n - pos));
+            pos = n + 1;
+        } else {
+            break;
+        }
+    }
+    static auto const unexpected_trailing = [](string const& s) {
+        if (! s.empty()) {
+            throw logic_error("Expect empty trailing");
+        }
+    };
+    static auto const number_of = [](char const* s) -> size_t {
+        auto const n = atol(s);
+        if (n < 0) {
+            throw logic_error("Expect trailing number");
+        } else if (n == 0) {
+            throw logic_error("Expect non-zero trailing number");
+        } else {
+            return n;
+        }
+    };
+    return accumulate(delimited.cbegin(), delimited.cend(), spec_type{},
+            [&src](spec_type& acc, string const& s) {
+                if (s.empty()) {
+                    snprintf(message, sizeof message,
+                            "Invalid empty delimited sequence: %s", src.c_str());
+                    throw logic_error(message);
+                } else {
+                    pair<bool, size_t> number;
+                    switch(s[0]) {
+                        case 'F':
+                            unexpected_trailing(s.substr(1));
+                            acc.emplace_back(op_type::freeze, 0);
+                            break;
+                        case 'T':
+                            unexpected_trailing(s.substr(1));
+                            acc.emplace_back(op_type::thaw, 0);
+                            break;
+                        case 'C':
+                            unexpected_trailing(s.substr(1));
+                            acc.emplace_back(op_type::clear, 0);
+                            break;
+                        case 'I':
+                            acc.emplace_back(op_type::insertion,
+                                    number_of(s.substr(1).c_str()));
+                            break;
+                        case 'D':
+                            acc.emplace_back(op_type::deletion,
+                                    number_of(s.substr(1).c_str()));
+                            break;
+                        case 'U':
+                            unexpected_trailing(s.substr(1));
+                            acc.emplace_back(op_type::update, 0);
+                            break;
+                        case 'S':
+                            acc.emplace_back(op_type::stream,
+                                    s.size() == 1 ? 0 : number_of(s.substr(1).c_str()));
+                            break;
+                        default:
+                            snprintf(message, sizeof message,
+                                    "Unknown operation %c in %s", s[0], src.c_str());
+                            throw logic_error(message);
+                    }
+                    return acc;
+                }
+            });
+}
+
+string Spec::deparse(typename Spec::spec_type const& src) {
+    auto r = accumulate(src.cbegin(), src.cend(), string{},
+            [](string& acc, pair<op_type, size_t> const& entry) {
+                auto const payload = std::to_string(entry.second);
+                switch (entry.first) {
+                    case op_type::freeze:
+                        return acc.append("F ");
+                    case op_type::thaw:
+                        return acc.append("T ");
+                    case op_type::clear:
+                        return acc.append("C ");
+                    case op_type::insertion:
+                        return acc.append("I").append(payload).append(" ");
+                    case op_type::deletion:
+                        return acc.append("D").append(payload).append(" ");
+                    case op_type::update:
+                        return acc.append("U").append(" ");
+                    case op_type::stream:
+                        acc.append("S");
+                        if (entry.second) {
+                            acc.append(payload);
+                        }
+                        return acc.append(" ");
+                    default:
+                        throw logic_error("???");
+                }
+            });
+    return r.empty() ? r : r.substr(0, r.size() - 1);
+}
+
+typename Spec::spec_type Spec::normalize(size_t init, typename Spec::spec_type const& src) {
+    struct state {
+        size_t m_active;
+        size_t m_frozen_cnt = 0;
+        bool m_frozen = false;
+        state(size_t a): m_active(a) {}
+    };
+    return accumulate(src.cbegin(), src.cend(), make_pair(state{init}, spec_type{}),
+            [](pair<state, spec_type>& acc, typename spec_type::value_type const& entry) {
+                auto& fst = acc.first;
+                auto& snd = acc.second;
+                auto const op = entry.first;
+                auto const ops = entry.second;
+                switch(op) {
+                    case op_type::insertion:
+                        fst.m_active += entry.second;
+                        snd.emplace_back(entry);
+                        break;
+                    case op_type::update:
+                        assert(ops == 0);
+                        snd.emplace_back(entry);
+                        break;
+                    case op_type::deletion:
+                        if (fst.m_active) {
+                            auto const delta = min(fst.m_active, ops);
+                            fst.m_active -= delta;
+                            snd.emplace_back(op, delta);
+                        }                          // deletion on empty table is no-op
+                        break;
+                    case op_type::clear:
+                        assert(ops == 0);
+                        if (fst.m_active) {            // ignore clear on empty table
+                            fst.m_active = 0;
+                            snd.emplace_back(entry);
+                        }
+                        break;
+                    case op_type::freeze:
+                        assert(ops == 0);
+                        if (! fst.m_frozen) {      // ignore double freeze
+                            fst.m_frozen = true;
+                            fst.m_frozen_cnt = fst.m_active;
+                            snd.emplace_back(entry);
+                        }
+                        break;
+                    case op_type::thaw:
+                        assert(ops == 0);
+                        if (fst.m_frozen) {        // ignore double thaw
+                            fst.m_frozen = false;
+                            if (fst.m_frozen_cnt) {                // artificially drain the stream before
+                                // thawing, unless stream had already drained
+                                snd.emplace_back(op_type::stream, fst.m_frozen_cnt = 0);
+                            }
+                            snd.emplace_back(entry);
+                        }
+                        break;
+                    case op_type::stream:
+                        if (fst.m_frozen) {        // ignore stream request unless frozen
+                            if (ops <= fst.m_frozen_cnt) {
+                                fst.m_frozen_cnt -= ops;
+                                snd.emplace_back(entry);
+                            } else if (fst.m_frozen_cnt) {         // stream everything
+                                snd.emplace_back(op, fst.m_frozen_cnt = 0);
+                            }                      // ignore if nothing left to stream
+                        }
+                }
+                return acc;
+            }).second;
+}
+
+
+Spec Spec::generate(size_t init_len, size_t len, unsigned& seed) {
+    static map<op_type, size_t> const prob{        // individual probabilities
+        make_pair(op_type::update, 12),
+        make_pair(op_type::insertion, 15),
+        make_pair(op_type::deletion, 7),
+        make_pair(op_type::clear, 2),
+        make_pair(op_type::freeze, 3),             // let it freeze longer
+        make_pair(op_type::thaw, 1),
+        make_pair(op_type::stream, 10)
+    };
+    static auto const prob_acc = accumulate(prob.cbegin(), prob.cend(),
+            make_pair(0lu, vector<pair<size_t, op_type>>{}),
+            [] (pair<size_t, vector<pair<size_t, op_type>>>& acc,
+                pair<op_type, size_t> const& entry) noexcept {
+                acc.second.emplace_back(acc.first, entry.first);
+                acc.first += entry.second;
+                return acc;
+            });
+    static auto const sum_prop = prob_acc.first;
+    static uniform_int_distribution<size_t> unif(0, sum_prop);
+    static normal_distribution<> nrange(7, 3);
+
+    mt19937 rgen(seed ? seed : (seed = rd()));
+    auto const truncated_normal = [&rgen]() {
+        auto const r = nrange(rgen);
+        return max<size_t>(r, 0lu);
+    };
+
+    string init_seq{};
+    for (auto i = 0; i < len; ++i) {
+        auto const r = unif(rgen);
+        switch(prev(find_if(prob_acc.second.cbegin(), prob_acc.second.cend(),
+                        [r] (pair<size_t, op_type> const& entry) {
+                            return entry.first > r;
+                        }))->second) {
+            case op_type::insertion:
+                init_seq.append("I")
+                    .append(std::to_string(max(1lu, truncated_normal())))
+                    .append(" ");
+                break;
+            case op_type::deletion:
+                init_seq.append("D")
+                    .append(std::to_string(max(1lu, truncated_normal())))
+                    .append(" ");
+                break;
+            case op_type::update:
+                init_seq.append("U ");
+                break;
+            case op_type::clear:
+                init_seq.append("C ");
+                break;
+            case op_type::freeze:
+                init_seq.append("F ");
+                break;
+            case op_type::thaw:
+                init_seq.append("T ");
+                break;
+            case op_type::stream:
+                init_seq.append("S");
+                if (unif(rgen)) {                 // if hits 0, stream everything
+                    init_seq.append(std::to_string(max(1lu, truncated_normal())));
+                }
+                init_seq.append(" ");
+        }
+    }
+    return {init_len, init_seq.empty() ? init_seq : init_seq.substr(0, init_seq.size() - 1)};
+}
 
 /**
  * Realistic tests using persistent table for correctness of
@@ -181,6 +461,7 @@ public:
             insert_row(i);
         }
     }
+    void update(void const*, size_t);
     PersistentTable& table() noexcept;
     PersistentTable const& table() const noexcept;
     static size_t id_of(TableTuple const&);
@@ -253,12 +534,22 @@ template<typename Config> NValue ProcPersistenTable<Config>::generate(
 }
 
 template<typename Config> void ProcPersistenTable<Config>::insert_row(size_t id) {
-    m_table->insertTuple(
+    table().insertTuple(
             Config::SCHEMA->build_with(
-                m_table->tempTuple(),
+                table().tempTuple(),
                 [id](size_t col_index, ValueType vt, TupleSchema::ColumnInfo const& info) -> NValue {
                     return ProcPersistenTable<Config>::generate(id, vt, info.length);
                 }));
+}
+
+template<typename Config> void ProcPersistenTable<Config>::update(void const* p, size_t id) {
+    table().updateTuple(
+            Config::SCHEMA->build_with(            // dst
+                table().tempTuple(),
+                [id](size_t col_index, ValueType vt, TupleSchema::ColumnInfo const& info) -> NValue {
+                    return ProcPersistenTable<Config>::generate(id, vt, info.length);
+                }),
+            table().tempTuple().move(const_cast<void*>(p)));       // src
 }
 
 template<typename Config> size_t ProcPersistenTable<Config>::id_of(TableTuple const& tuple) {
@@ -302,6 +593,11 @@ template<typename Config> bool ProcPersistenTable<Config>::valid(TableTuple cons
 
 template<typename Config> inline bool ProcPersistenTable<Config>::valid(TableTuple const& tuple) {
     return valid(tuple, id_of(tuple));
+}
+
+TEST_F(PersistentTableAllocatorTest, TestSpec) {
+    unsigned seed = 5;
+    puts(Spec::generate(30, 200, seed).to_string().c_str());
 }
 
 TEST_F(PersistentTableAllocatorTest, Dummy) {
