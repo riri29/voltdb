@@ -5470,8 +5470,9 @@ public class RealVoltDB implements VoltDBInterface, RestoreAgent.Callback, HostM
                 hostLog.info("Update local active site count to :" + leaderCount);
 
                 // Update the catalog update and log update barrier to expect the new partition count
-                VoltDB.getSiteCountBarrier().setPartyCount(leaderCount);
-
+                if (leaderCount > 0) {
+                    VoltDB.getSiteCountBarrier().setPartyCount(leaderCount);
+                }
                 // release export resources
                 VoltDB.getExportManager().releaseResources(getNonLeaderPartitionIds());
                 if (m_commandLog != null) {
