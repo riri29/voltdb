@@ -94,7 +94,10 @@ public:
     // That would just make the code a little harder to analyze.
     typedef MaterializedViewTriggerForStreamInsert MatViewType;
 
-    virtual std::string tableType() const { return "StreamedTable"; }
+    virtual std::string tableTypeName() const { return "StreamedTable"; }
+    StorageTableType tableType() const {
+        return StorageTableType::streamed;
+    }
 
     // undo interface particular to streamed table.
     void undo(size_t mark, int64_t seqNo);

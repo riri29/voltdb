@@ -71,15 +71,8 @@ Table* TableFactory::getPersistentTable(
 
     initCommon(databaseId, table, name, schema, columnNames, true);
 
-    TableStats *stats;
-    if (tableTypeIsStream(tableType)) {
-        stats = streamedTable->getTableStats();
-    } else {
-        stats = persistentTable->getTableStats();
-    }
-
     // initialize stats for the table
-    configureStats(name, stats);
+    configureStats(name, table->getTableStats());
 
     // If a regular table with export enabled, create a companion streamed table
     if (isTableWithStream(tableType)) {
@@ -93,8 +86,8 @@ Table* TableFactory::getPersistentTable(
 }
 
 TableTupleFilter* TableFactory::getTableTupleFilter(Table* table) {
-   TableTupleFilter* filter = NULL;
-   if (table->tableType().compare("PersistentTable") == 0) {
+   TableTupleFilter* filter;
+   if (table->tableType() == StorageTableType::persistent) {
        filter = new PersistentTableTupleFilter();
    } else {
        filter = new TableTupleFilter();

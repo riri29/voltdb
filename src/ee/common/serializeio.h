@@ -46,19 +46,11 @@
 #pragma once
 
 #include <limits>
-#include <vector>
 #include <string>
-#include <sstream>
-#include <fstream>
-#include <iomanip>
-#include <iostream>
-#include <exception>
 #include <arpa/inet.h>
-#include <common/debuglog.h>
 #include <boost/ptr_container/ptr_vector.hpp>
 
 #include "bytearray.h"
-#include "debuglog.h"
 #include "common/SQLException.h"
 #include "common/types.h"
 
@@ -127,7 +119,7 @@ public:
 
     inline int16_t readShort() {
         int16_t value = readPrimitive<int16_t>();
-        if (E == BYTE_ORDER_BIG_ENDIAN) {
+        if (E == Endianess::big) {
             return ntohs(value);
         } else {
             return value;
@@ -136,7 +128,7 @@ public:
 
     inline int32_t readInt() {
         int32_t value = readPrimitive<int32_t>();
-        if (E == BYTE_ORDER_BIG_ENDIAN) {
+        if (E == Endianess::big) {
             return ntohl(value);
         } else {
             return value;
@@ -153,7 +145,7 @@ public:
 
     inline int64_t readLong() {
         int64_t value = readPrimitive<int64_t>();
-        if (E == BYTE_ORDER_BIG_ENDIAN) {
+        if (E == Endianess::big) {
             return ntohll(value);
         } else {
             return value;
@@ -162,7 +154,7 @@ public:
 
     inline float readFloat() {
         int32_t value = readPrimitive<int32_t>();
-        if (E == BYTE_ORDER_BIG_ENDIAN) {
+        if (E == Endianess::big) {
             value = ntohl(value);
         }
         float retval;
@@ -172,7 +164,7 @@ public:
 
     inline double readDouble() {
         int64_t value = readPrimitive<int64_t>();
-        if (E == BYTE_ORDER_BIG_ENDIAN) {
+        if (E == Endianess::big) {
             value = ntohll(value);
         }
         double retval;
@@ -433,7 +425,7 @@ public:
         m_position += length;
     }
 
-    void writeVarBinary(std::function<void(SerializeOutput&)> writer) {
+    void writeVarBinary(std::function<void(SerializeOutput&)> const& writer) {
         int pos = reserveBytes(sizeof(int32_t));
         writer(*this);
         writeIntAt(pos, position() - pos - sizeof(int32_t));
@@ -476,38 +468,27 @@ public:
     ReferenceSerializeInput(const void* data, size_t length) {
         SerializeInput<E>::initialize(data, length);
     }
-
-    // Destructor does nothing: nothing to clean up!
-    virtual ~ReferenceSerializeInput() {}
 };
 
 /** Implementation of SerializeInput that makes a copy of the buffer. */
 template <Endianess E>
 class CopySerializeInput : public SerializeInput<E> {
+    ByteArray m_bytes;
 public:
     CopySerializeInput(const void* data, size_t length) :
             m_bytes(reinterpret_cast<const char*>(data), static_cast<int>(length)) {
         SerializeInput<E>::initialize(m_bytes.data(), static_cast<int>(length));
     }
-
-    // Destructor frees the ByteArray.
-    virtual ~CopySerializeInput() {}
-
-private:
-    ByteArray m_bytes;
 };
 
-#ifndef SERIALIZE_IO_DECLARATIONS
-#define SERIALIZE_IO_DECLARATIONS
-typedef SerializeInput<BYTE_ORDER_BIG_ENDIAN> SerializeInputBE;
-typedef SerializeInput<BYTE_ORDER_LITTLE_ENDIAN> SerializeInputLE;
+using SerializeInputBE = SerializeInput<Endianess::big>;
+using SerializeInputLE = SerializeInput<Endianess::little>;
 
-typedef ReferenceSerializeInput<BYTE_ORDER_BIG_ENDIAN> ReferenceSerializeInputBE;
-typedef ReferenceSerializeInput<BYTE_ORDER_LITTLE_ENDIAN> ReferenceSerializeInputLE;
+using ReferenceSerializeInputBE = ReferenceSerializeInput<Endianess::big>;
+using ReferenceSerializeInputLE = ReferenceSerializeInput<Endianess::little> ;
 
-typedef CopySerializeInput<BYTE_ORDER_BIG_ENDIAN> CopySerializeInputBE;
-typedef CopySerializeInput<BYTE_ORDER_LITTLE_ENDIAN> CopySerializeInputLE;
-#endif
+using CopySerializeInputBE = CopySerializeInput<Endianess::big>;
+using CopySerializeInputLE = CopySerializeInput<Endianess::little> ;
 
 /** Implementation of SerializeOutput that references an existing buffer. */
 class ReferenceSerializeOutput : public SerializeOutput {
@@ -527,9 +508,6 @@ public:
         return m_capacity - m_position;
     }
 
-    // Destructor does nothing: nothing to clean up!
-    virtual ~ReferenceSerializeOutput() {}
-
 protected:
     /** Reference output can't resize the buffer: Frowny-Face. */
     virtual void expand(size_t minimum_desired) {
@@ -544,6 +522,7 @@ protected:
  * if the regular allocation runs out of space. The topend is notified when this occurs.
  */
 class FallbackSerializeOutput : public ReferenceSerializeOutput {
+    char *m_fallbackBuffer = nullptr;
 public:
     FallbackSerializeOutput() = default;
 
@@ -565,12 +544,11 @@ public:
 
     /** Expand once to a fallback size, and if that doesn't work abort */
     void expand(size_t minimum_desired);
-private:
-    char *m_fallbackBuffer = nullptr;
 };
 
 /** Implementation of SerializeOutput that makes a copy of the buffer. */
 class CopySerializeOutput : public SerializeOutput {
+    ByteArray m_bytes;
 public:
     // Start with something sizeable so we avoid a ton of initial
     // allocations.
@@ -579,9 +557,6 @@ public:
     CopySerializeOutput() : m_bytes(INITIAL_SIZE) {
         initialize(m_bytes.data(), INITIAL_SIZE);
     }
-
-    // Destructor frees the ByteArray.
-    virtual ~CopySerializeOutput() {}
 
     void reset() {
         setPosition(0);
@@ -599,9 +574,6 @@ protected:
         m_bytes.copyAndExpand(static_cast<int>(next_capacity));
         initialize(m_bytes.data(), next_capacity);
     }
-
-private:
-    ByteArray m_bytes;
 };
 }
 

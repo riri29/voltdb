@@ -345,7 +345,8 @@ public:
     // ------------------------------------------------------------------
     // UTILITY
     // ------------------------------------------------------------------
-    std::string tableType() const;
+    std::string tableTypeName() const;
+    StorageTableType tableType() const;
     bool equals(PersistentTable* other);
 
     virtual std::string debug(const std::string &spacer) const;

@@ -242,14 +242,16 @@ TableTuple findTuple(PersistentTable* table, ValueType key) {
        if (Tools::nvalueCompare(iterTuple.getNValue(0), key) == 0) {
            found = true;
            return true;
-       }
-       return false;
+        } else {
+           return false;
+        }
     });
 
     if (found) {
        return iterTuple;
+    } else {
+        return TableTuple(); // null tuple
     }
-    return TableTuple(); // null tuple
 }
 
 }

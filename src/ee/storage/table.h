@@ -43,8 +43,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef HSTORETABLE_H
-#define HSTORETABLE_H
+#pragma once
 
 #include "common/ids.h"
 #include "common/LargeTempTableBlockId.hpp"
@@ -128,8 +127,7 @@ class Table {
 
     TableTuple& tempTuple() {
         vassert(m_tempTuple.m_data);
-        m_tempTuple.resetHeader();
-        m_tempTuple.setActiveTrue();
+        m_tempTuple.resetHeader().setActiveTrue();
         // Temp tuples are typically re-used so their data can change frequently.
         // Mark inlined, variable-length data as volatile.
         m_tempTuple.setInlinedDataIsVolatileTrue();
@@ -167,7 +165,8 @@ class Table {
 
     CatalogId databaseId() const { return m_databaseId; }
 
-    virtual std::string tableType() const = 0;
+    virtual std::string tableTypeName() const = 0;
+    virtual StorageTableType tableType() const = 0;
 
     // Return a string containing info about this table
     std::string debug() const {
@@ -349,4 +348,3 @@ protected:
 };
 
 }
-#endif

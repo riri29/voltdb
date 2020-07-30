@@ -150,7 +150,7 @@ std::string Table::debug(const std::string &spacer) const {
     std::ostringstream buffer;
     std::string infoSpacer = spacer + "  |";
 
-    buffer << infoSpacer << tableType() << "(" << name() << "):\n";
+    buffer << infoSpacer << tableTypeName() << "(" << name() << "):\n";
     buffer << infoSpacer << "\tAllocated Tuples:  " << allocatedTupleCount() << "\n";
     buffer << infoSpacer << "\tNumber of Columns: " << columnCount() << "\n";
 
@@ -166,8 +166,7 @@ std::string Table::debug(const std::string &spacer) const {
     //
     // Tuples
     //
-    if (tableType().compare("LargeTempTable") != 0
-        && tableType().compare("StreamedTable") != 0) {
+    if (tableType() != StorageTableType::large_temp && tableType() != StorageTableType::streamed) {
         buffer << infoSpacer << "===========================================================\n";
         buffer << infoSpacer << "\tDATA\n";
 
@@ -179,7 +178,7 @@ std::string Table::debug(const std::string &spacer) const {
             std::string lastTuple = "";
             while (iter.next(tuple)) {
                 if (tuple.isActive()) {
-                    buffer << infoSpacer << "\t" << tuple.debug(this->name().c_str()) << "\n";
+                    buffer << infoSpacer << "\t" << tuple.debug(name().c_str()) << "\n";
                 }
             }
         }
@@ -406,23 +405,11 @@ void Table::serializeTupleTo(SerializeOutput &serialOutput, voltdb::TableTuple *
 }
 
 bool Table::equals(voltdb::Table *other) {
-    if (columnCount() != other->columnCount()) {
-        return false;
-    }
-
-    if (activeTupleCount() != other->activeTupleCount()) {
-        return false;
-    }
-
-    if (databaseId() != other->databaseId()) {
-        return false;
-    }
-
-    if (name() != other->name()) {
-        return false;
-    }
-
-    if (tableType() != other->tableType()) {
+    if (tableType() != other->tableType() ||
+            columnCount() != other->columnCount() ||
+            activeTupleCount() != other->activeTupleCount() ||
+            databaseId() != other->databaseId() ||
+            name() != other->name()) {
         return false;
     }
 
@@ -436,11 +423,9 @@ bool Table::equals(voltdb::Table *other) {
     voltdb::TableTuple firstTuple(m_schema);
     voltdb::TableTuple secondTuple(otherSchema);
     while (firstTI.next(firstTuple)) {
-        if ( ! secondTI.next(secondTuple)) {
+        if (! secondTI.next(secondTuple)) {
             return false;
-        }
-
-        if ( ! firstTuple.equals(secondTuple)) {
+        } else if (! firstTuple.equals(secondTuple)) {
             return false;
         }
     }

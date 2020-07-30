@@ -139,8 +139,7 @@ public:
      */
     inline TableTuple& moveAndInitialize(void *address) {
         move(address);
-        resetHeader();
-        return *this;
+        return resetHeader();
     }
 
     inline TableTuple& moveNoHeader(void *address) {
@@ -615,9 +614,10 @@ private:
         }
     }
 
-    inline void resetHeader() {
+    inline TableTuple& resetHeader() {
         // treat the first "value" as a boolean flag
         *(reinterpret_cast<char*> (m_data)) = 0;
+        return *this;
     }
 
     /** The types of the columns in the tuple */
@@ -1124,7 +1124,7 @@ inline void TableTuple::deserializeFromDR(SerializeInputLE &tupleIn,  Pool *data
             setNValue(j, value);
         } else {
             char *dataPtr = getWritableDataPtr(columnInfo);
-            NValue::deserializeFrom<TUPLE_SERIALIZATION_DR, BYTE_ORDER_LITTLE_ENDIAN>(
+            NValue::deserializeFrom<TUPLE_SERIALIZATION_DR, Endianess::little>(
                     tupleIn, dataPool, dataPtr,
                     columnInfo->getVoltType(), columnInfo->inlined,
                     static_cast<int32_t>(columnInfo->length), columnInfo->inBytes);
@@ -1141,7 +1141,7 @@ inline void TableTuple::deserializeFromDR(SerializeInputLE &tupleIn,  Pool *data
             setHiddenNValue(i, value);
         } else {
             char *dataPtr = getWritableDataPtr(hiddenColumnInfo);
-            NValue::deserializeFrom<TUPLE_SERIALIZATION_DR, BYTE_ORDER_LITTLE_ENDIAN>(
+            NValue::deserializeFrom<TUPLE_SERIALIZATION_DR, Endianess::little>(
                     tupleIn, dataPool, dataPtr, hiddenColumnInfo->getVoltType(), false, -1, false);
         }
     }

@@ -73,7 +73,11 @@ bool TempTable::insertTuple(TableTuple const& source) {
     return true;
 }
 
-std::string TempTable::tableType() const { return "TempTable"; }
+std::string TempTable::tableTypeName() const { return "TempTable"; }
+
+StorageTableType TempTable::tableType() const {
+    return StorageTableType::temp;
+}
 
 voltdb::TableStats* TempTable::getTableStats() { return NULL; }
 

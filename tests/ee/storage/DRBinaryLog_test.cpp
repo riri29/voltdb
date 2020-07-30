@@ -181,8 +181,7 @@ public:
       : m_exportColumnAllowNull(12, false),
         m_exportColumnName(exportColumnNamesArray, exportColumnNamesArray + 12),
         m_context(new ExecutorContext(0, 0, NULL, topend, pool, this,
-                                      "localhost", 2, drStream, drReplicatedStream, clusterId))
-    {
+                    "localhost", 2, drStream, drReplicatedStream, clusterId)) {
         setPartitionIdForTest(0);
         ThreadLocalPool::setPartitionIds(0);
         m_exportColumnAllowNull[2] = true;
@@ -343,42 +342,44 @@ public:
         const vector<string> columnNames(columnNamesArray, columnNamesArray + COLUMN_COUNT);
 
 
-        m_table = reinterpret_cast<PersistentTable*>(TableFactory::getPersistentTable(0, "P_TABLE", m_schema, columnNames, tableHandle, false, 0));
-        {
-            ScopedReplicatedResourceLock scopedLock;
-            ExecuteWithMpMemory useMpMemory;
-            m_replicatedTable = reinterpret_cast<PersistentTable *>(TableFactory::getPersistentTable(0,
-                                                                                                             "R_TABLE",
-                                                                                                             m_replicatedSchema,
-                                                                                                             columnNames,
-                                                                                                             replicatedTableHandle,
-                                                                                                             false, -1,
-                                                                                                             PERSISTENT, 0,
-                                                                                                             INT_MAX,
-                                                                                                             true,
-                                                                                                             true));
-        }
+        m_table = reinterpret_cast<PersistentTable*>(TableFactory::getPersistentTable(
+                    0, "P_TABLE", m_schema, columnNames, tableHandle, false, 0));
+        ScopedReplicatedResourceLock::run([&columnNames, this]() {
+                ExecuteWithMpMemory::run([&columnNames, this]() {
+                        m_replicatedTable = reinterpret_cast<PersistentTable*>(
+                                TableFactory::getPersistentTable(0,
+                                    "R_TABLE",
+                                    m_replicatedSchema,
+                                    columnNames,
+                                    replicatedTableHandle,
+                                    false, -1,
+                                    PERSISTENT, 0,
+                                    INT_MAX,
+                                    true,
+                                    true));
+                        }, true);
+                }, true);
 
         {
             ReplicaProcessContextSwitcher switcher;
             m_tableReplica = reinterpret_cast<PersistentTable*>(TableFactory::getPersistentTable(0,
-                                                                                                         "P_TABLE_REPLICA",
-                                                                                                         m_schemaReplica,
-                                                                                                         columnNames,
-                                                                                                         tableHandle,
-                                                                                                         false, 0));
+                        "P_TABLE_REPLICA",
+                        m_schemaReplica,
+                        columnNames,
+                        tableHandle,
+                        false, 0));
             ScopedReplicatedResourceLock scopedLock;
             ExecuteWithMpMemory useMpMemory;
             m_replicatedTableReplica = reinterpret_cast<PersistentTable*>(TableFactory::getPersistentTable(0,
-                                                                                                                   "R_TABLE_REPLICA",
-                                                                                                                   m_replicatedSchemaReplica,
-                                                                                                                   columnNames,
-                                                                                                                   replicatedTableHandle,
-                                                                                                                   false, -1,
-                                                                                                                   PERSISTENT, 0,
-                                                                                                                   INT_MAX,
-                                                                                                                   false,
-                                                                                                                   true));
+                        "R_TABLE_REPLICA",
+                        m_replicatedSchemaReplica,
+                        columnNames,
+                        replicatedTableHandle,
+                        false, -1,
+                        PERSISTENT, 0,
+                        INT_MAX,
+                        false,
+                        true));
         }
         m_table->setDR(true);
 
@@ -397,8 +398,10 @@ public:
         string otherColumnNamesArray[2] = { "C_TINYINT", "C_BIGINT" };
         const vector<string> otherColumnNames(otherColumnNamesArray, otherColumnNamesArray + 2);
 
-        m_otherTableWithIndex = reinterpret_cast<PersistentTable*>(TableFactory::getPersistentTable(0, "OTHER_TABLE_1", m_otherSchemaWithIndex, otherColumnNames, otherTableHandleWithIndex, false, 0));
-        m_otherTableWithoutIndex = reinterpret_cast<PersistentTable*>(TableFactory::getPersistentTable(0, "OTHER_TABLE_2", m_otherSchemaWithoutIndex, otherColumnNames, otherTableHandleWithoutIndex, false, 0));
+        m_otherTableWithIndex = reinterpret_cast<PersistentTable*>(TableFactory::getPersistentTable(
+                    0, "OTHER_TABLE_1", m_otherSchemaWithIndex, otherColumnNames, otherTableHandleWithIndex, false, 0));
+        m_otherTableWithoutIndex = reinterpret_cast<PersistentTable*>(TableFactory::getPersistentTable(
+                    0, "OTHER_TABLE_2", m_otherSchemaWithoutIndex, otherColumnNames, otherTableHandleWithoutIndex, false, 0));
 
         {
             ReplicaProcessContextSwitcher switcher;

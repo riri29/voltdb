@@ -519,7 +519,7 @@ TEST_F(ExecutorVectorTest, Large) {
             // is a large temp table
             auto table = executor->getTempOutputTable();
             ASSERT_NE(NULL, table);
-            ASSERT_EQ("LargeTempTable", table->tableType());
+            ASSERT_EQ("LargeTempTable", table->tableTypeName());
         }
     }
 

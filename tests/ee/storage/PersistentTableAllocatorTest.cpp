@@ -28,6 +28,8 @@
 #include <functional>
 #include <random>
 
+#include "common/executorcontext.hpp"
+#include "common/ExecuteWithMpMemory.h"
 #include "common/NValue.hpp"
 #include "common/TupleOutputStream.h"
 #include "common/TupleOutputStreamProcessor.h"
@@ -36,6 +38,7 @@
 #include "common/types.h"
 #include "common/ValueFactory.hpp"
 #include "expressions/expressions.h"
+#include "execution/VoltDBEngine.h"
 #include "indexes/tableindex.h"
 #include "indexes/tableindexfactory.h"
 #include "storage/DRTupleStream.h"
@@ -416,22 +419,22 @@ Spec Spec::generate(size_t init_len, size_t len, bool rand_fixed) {
         rand_fixed};
 }
 
+void teardown(PersistentTable* tbl) {
+    if (tbl != nullptr) {
+        ScopedReplicatedResourceLock::run([tbl]() {
+                ExecuteWithMpMemory::run([tbl]() {delete tbl;}, tbl->isReplicatedTable());
+            }, tbl->isReplicatedTable());
+    }
+}
+
 /**
  * Realistic tests using persistent table for correctness of
  * snapshot process
  */
 template<typename Config>
-class ProcPersistenTable {
-    unique_ptr<VoltDBEngine> m_engine{new VoltDBEngine{}};
-    unique_ptr<PersistentTable> m_table;
-    size_t m_rowId = 0;
-
-    static char SIGNATURE[20];
-    static NValue generate(size_t, ValueType, size_t limit);
-    void insert_row(size_t);
-    void mutate(typename Spec::op_type, size_t, bool);
-public:
-    ProcPersistenTable(bool replicated) {
+struct ProcPersistentTable {
+    enum class partition_type : bool {replicated, partitioned};
+    ProcPersistentTable(partition_type pt) {
         int const partitionId = 0;
         m_engine->initialize(1,                    // cluster index
                 1,                                 // site id
@@ -452,20 +455,27 @@ public:
                 reinterpret_cast<char const*>(data),       // config
                 nullptr,                           // config ptr
                 0);                                // num tokens
-        m_table.reset(dynamic_cast<PersistentTable*>(
-                    TableFactory::getPersistentTable(
-                        0,                         // database id
-                        "Foo",                     // table name
-                        Config1::SCHEMA,
-                        Config1::COLUMN_NAMES,
-                        SIGNATURE,
-                        false,                     // is materialized
-                        replicated ? -1 : 0,       // always partition on 0-th column, if the table is partitioned
-                        PERSISTENT,                // table type
-                        0,                         // table allocator target size
-                        numeric_limits<int>::max(),// tuple limit: max number of columns in a table
-                        false,                     // DR enabled
-                        replicated)));             // is replicated
+        bool const replicated = pt == partition_type::replicated;
+        ScopedReplicatedResourceLock::run([replicated, this]() {
+                setup(replicated);
+                ExecuteWithMpMemory::run([replicated, this]() {
+                        m_table = table_ptr_type(dynamic_cast<PersistentTable*>(
+                                    TableFactory::getPersistentTable(
+                                        0,                         // database id
+                                        "Foo",                     // table name
+                                        Config1::SCHEMA,
+                                        Config1::COLUMN_NAMES,
+                                        SIGNATURE,
+                                        false,                     // is materialized
+                                        replicated ? -1 : 0,       // always partition on 0-th column, if the table is partitioned
+                                        PERSISTENT,                // table type
+                                        0,                         // table allocator target size
+                                        numeric_limits<int>::max(),// tuple limit: max number of columns in a table
+                                        false,                     // DR enabled
+                                        replicated)),              // is replicated
+                                &teardown);
+                        }, replicated);
+                }, replicated);
         assert(replicated == m_table->isReplicatedTable());
         for_each(Config::INDICES.cbegin(), Config::INDICES.cend(),
                 [this](TableIndex* ind) { m_table->addIndex(ind); });
@@ -488,19 +498,40 @@ public:
     size_t size() const noexcept {
         return table().visibleTupleCount();
     }
+private:
+    unique_ptr<VoltDBEngine> m_engine{new VoltDBEngine{}};
+    using table_ptr_type = unique_ptr<PersistentTable, decltype(&teardown)>;
+    table_ptr_type m_table{nullptr, &teardown};
+    size_t m_rowId = 0;
+
+    static char SIGNATURE[20];
+    static NValue generate(size_t, ValueType, size_t limit);
+    void insert_row(size_t);
+    void mutate(typename Spec::op_type, size_t, bool);
+    void setup(bool);
 };
 
-template<typename Config> char ProcPersistenTable<Config>::SIGNATURE[20] = {};
+template<typename Config> char ProcPersistentTable<Config>::SIGNATURE[20] = {};
 
-template<typename Config> PersistentTable& ProcPersistenTable<Config>::table() noexcept {
+template<typename Config> PersistentTable& ProcPersistentTable<Config>::table() noexcept {
     return *m_table;
 }
 
-template<typename Config> PersistentTable const& ProcPersistenTable<Config>::table() const noexcept {
+template<typename Config> void ProcPersistentTable<Config>::setup(bool replicated) {
+    if (replicated) {
+        m_engine->setPartitionIdForTest(0);
+        m_engine->setLowestSiteForTest();
+        ThreadLocalPool::setPartitionIds(0);
+        EngineLocals local(ExecutorContext::getExecutorContext());
+        SynchronizedThreadLock::init(1/*sites per host*/, local);
+    }
+}
+
+template<typename Config> PersistentTable const& ProcPersistentTable<Config>::table() const noexcept {
     return *m_table;
 }
 
-template<typename Config> vector<void const*> ProcPersistenTable<Config>::slots() const {
+template<typename Config> vector<void const*> ProcPersistentTable<Config>::slots() const {
     vector<void const*> r;
     r.reserve(table().allocator().size());
     auto const& chunks = table().allocator().chunk_ranges();
@@ -514,7 +545,7 @@ template<typename Config> vector<void const*> ProcPersistenTable<Config>::slots(
     return r;
 }
 
-template<typename Config> NValue ProcPersistenTable<Config>::generate(
+template<typename Config> NValue ProcPersistentTable<Config>::generate(
         size_t id, ValueType vt, size_t limit) {
     static char const postfix[] =
         "abcdefgABCDEFGhijklmnHIJKLMNopqrstOPQRSTuvwxyzUVWXYZ`12345~!@#$%67890^&()=+[\\;',./]{}|:\"<>? ";
@@ -550,26 +581,35 @@ template<typename Config> NValue ProcPersistenTable<Config>::generate(
     }
 }
 
-template<typename Config> void ProcPersistenTable<Config>::insert_row(size_t id) {
-    table().insertTuple(
-            Config::SCHEMA->build_with(
-                table().tempTuple(),
-                [id](size_t col_index, ValueType vt, TupleSchema::ColumnInfo const& info) -> NValue {
-                    return ProcPersistenTable<Config>::generate(id, vt, info.length);
-                }));
+template<typename Config> void ProcPersistentTable<Config>::insert_row(size_t id) {
+    bool const rep = table().isReplicatedTable();
+    ScopedReplicatedResourceLock::run([this, id, rep]() {
+//            if (rep) {
+//                SynchronizedThreadLock::countDownGlobalTxnStartCount(true);
+//            }
+            ExecuteWithMpMemory::run([this, id, rep]() {                   // DRBinaryLog_test:539
+                table().insertTuple(Config::SCHEMA->build_with(table().tempTuple(),
+                            [id] (size_t col_index, ValueType vt, TupleSchema::ColumnInfo const& info) -> NValue {
+                                return ProcPersistentTable<Config>::generate(id, vt, info.length);
+                            }));
+                }, rep);
+//            if (rep) {
+//                SynchronizedThreadLock::signalLowestSiteFinished();
+//            }
+        }, rep);
 }
 
-template<typename Config> void ProcPersistenTable<Config>::update(void const* p, size_t id) {
+template<typename Config> void ProcPersistentTable<Config>::update(void const* p, size_t id) {
     table().updateTuple(
             Config::SCHEMA->build_with(            // dst
                 table().tempTuple(),
                 [id](size_t col_index, ValueType vt, TupleSchema::ColumnInfo const& info) -> NValue {
-                    return ProcPersistenTable<Config>::generate(id, vt, info.length);
+                    return ProcPersistentTable<Config>::generate(id, vt, info.length);
                 }),
             table().tempTuple().move(const_cast<void*>(p)));       // src
 }
 
-template<typename Config> size_t ProcPersistenTable<Config>::id_of(TableTuple const& tuple) {
+template<typename Config> size_t ProcPersistentTable<Config>::id_of(TableTuple const& tuple) {
     bool found = false;
     auto col = 0l;
     for (auto i = 0l; i < Config::SCHEMA->columnCount(); ++i) {
@@ -594,7 +634,7 @@ template<typename Config> size_t ProcPersistenTable<Config>::id_of(TableTuple co
     }
 }
 
-template<typename Config> bool ProcPersistenTable<Config>::valid(TableTuple const& tuple, size_t id) {
+template<typename Config> bool ProcPersistentTable<Config>::valid(TableTuple const& tuple, size_t id) {
     if (! Config::SCHEMA->equals(tuple.getSchema())) {
         return false;
     } else {
@@ -608,11 +648,11 @@ template<typename Config> bool ProcPersistenTable<Config>::valid(TableTuple cons
     }
 }
 
-template<typename Config> inline bool ProcPersistenTable<Config>::valid(TableTuple const& tuple) {
+template<typename Config> inline bool ProcPersistentTable<Config>::valid(TableTuple const& tuple) {
     return valid(tuple, id_of(tuple));
 }
 
-template<typename Config> void ProcPersistenTable<Config>::mutate(
+template<typename Config> void ProcPersistentTable<Config>::mutate(
         typename Spec::op_type op, size_t payload, bool rand_fixed) {
     auto& rd = rand_fixed ? Spec::rd_fixed() : Spec::rd_r();
     auto const nrows = table().allocator().size();
@@ -690,14 +730,14 @@ TEST_F(PersistentTableAllocatorTest, TestSpec) {
 }
 
 TEST_F(PersistentTableAllocatorTest, Dummy) {
-    ProcPersistenTable<Config1> t(false/*replicated*/);
+    ProcPersistentTable<Config1> t(ProcPersistentTable<Config1>::partition_type::partitioned);
     t.insert(50);
     size_t i = 0;
     ASSERT_FALSE(storage::until<typename PersistentTable::txn_const_iterator>(
                 static_cast<typename PersistentTable::Alloc const&>(t.table().allocator()),
                 [&i, &t](void const* p) { // until current tuple is not valid
                     ++i;
-                    return ! ProcPersistenTable<Config1>::valid(
+                    return ! ProcPersistentTable<Config1>::valid(
                             t.table().tempTuple().move(const_cast<void*>(p)));
                 }));
     ASSERT_EQ(50lu, i);
@@ -705,7 +745,7 @@ TEST_F(PersistentTableAllocatorTest, Dummy) {
     ASSERT_EQ(50lu, slots.size());
     i = 0;
     ASSERT_TRUE(all_of(slots.cbegin(), slots.cend(), [&t, &i](void const* p) noexcept {
-                    return ProcPersistenTable<Config1>::valid(
+                    return ProcPersistentTable<Config1>::valid(
                             t.table().tempTuple().move(const_cast<void*>(p)),
                             i++);
                 }));

@@ -85,14 +85,14 @@ PersistentTable::PersistentTable(int partitionColumn,
     , m_releaseReplicated(this)
     , m_tableType(tableType) {
     if (!m_isMaterialized && m_isReplicated != (m_partitionColumn == -1)) {
-        VOLT_ERROR("CAUTION: detected inconsistent isReplicate flag. Table name: %s, m_isMaterialized: %s, m_partitionColumn: %d, m_isReplicated: %s\n",
-                m_name.c_str(), m_isMaterialized ? "true" : "false", m_partitionColumn, m_isReplicated ? "true" : "false");
-    }
-
-    if (signature) {
-        ::memcpy(&m_signature, signature, 20);
+        throwSQLException(
+                "Detected inconsistent isReplicate flag. Table name: %s, "
+                "m_partitionColumn: %d, m_isReplicated: %s\n", m_name.c_str(),
+                m_partitionColumn, m_isReplicated ? "true" : "false");
+    } else if (signature) {
+        memcpy(&m_signature, signature, 20);
     } else {
-        ::memset(&m_signature, 0, sizeof(m_signature));
+        memset(&m_signature, 0, sizeof(m_signature));
     }
 }
 
@@ -100,8 +100,7 @@ void* PersistentTable::allocatorCopier(void*__restrict__ dst, void const*__restr
     checkContext("Copying");
     TableTuple srcTuple(m_schema), dstTuple(m_schema);
     srcTuple.move(const_cast<void*>(src));
-    dstTuple.move(dst).resetHeader();
-    dstTuple.copyForPersistentInsert(srcTuple);
+    dstTuple.move(dst).resetHeader().copyForPersistentInsert(srcTuple);
     return dst;
 }
 
@@ -622,8 +621,7 @@ bool PersistentTable::insertTupleIntoDeltaTable(TableTuple const& source) {
 
 TableTuple PersistentTable::createTuple(TableTuple const &source){
     TableTuple target(m_schema);
-    target.move(allocator().allocate()).resetHeader();
-    target.copyForPersistentInsert(source);
+    target.move(allocator().allocate()).resetHeader().copyForPersistentInsert(source);
     return target;
 }
 
@@ -1443,7 +1441,10 @@ bool PersistentTable::checkUpdateOnUniqueIndexes(TableTuple& targetTupleToUpdate
 // ------------------------------------------------------------------
 // UTILITY
 // ------------------------------------------------------------------
-std::string PersistentTable::tableType() const { return "PersistentTable"; }
+std::string PersistentTable::tableTypeName() const { return "PersistentTable"; }
+StorageTableType PersistentTable::tableType() const {
+    return StorageTableType::persistent;
+}
 
 bool PersistentTable::equals(PersistentTable* other) {
     if ( ! Table::equals(other)) {
@@ -1469,7 +1470,7 @@ std::string PersistentTable::debug(const std::string& spacer) const {
     std::ostringstream buffer;
     std::string infoSpacer = spacer + "  |";
 
-    buffer << infoSpacer << tableType() << "(" << name() << "):\n";
+    buffer << infoSpacer << tableTypeName() << "(" << name() << "):\n";
     buffer << infoSpacer << "\tNumber of Columns: " << columnCount() << "\n";
     buffer << infoSpacer << "===========================================================\n";
     buffer << infoSpacer << "\tCOLUMNS\n";
@@ -1567,8 +1568,7 @@ void PersistentTable::loadTuplesForLoadTable(SerializeInputBE &serialInput, Pool
     for (int i = 0; i < tupleCount; ++i) {
         TableTuple target(m_schema);
         void *address = const_cast<void*>(reinterpret_cast<void const *> (allocator().allocate()));
-        target.move(address).resetHeader();
-        target.setActiveTrue();
+        target.move(address).resetHeader().setActiveTrue();
         target.setPendingDeleteFalse();
         target.setPendingDeleteOnUndoReleaseFalse();
         try {
@@ -2206,8 +2206,7 @@ void PersistentTable::loadTuplesFromNoHeader(SerializeInputBE &serialInput,
     for (int i = 0; i < tupleCount; ++i) {
         TableTuple target(m_schema);
         void *address = const_cast<void*>(reinterpret_cast<void const *> (allocator().allocate()));
-        target.move(address).resetHeader();
-        target.setActiveTrue();
+        target.move(address).resetHeader().setActiveTrue();
         target.setPendingDeleteFalse();
         target.setPendingDeleteOnUndoReleaseFalse();
         try {
@@ -2255,9 +2254,7 @@ bool PersistentTable::equals(voltdb::Table *other) {
     while (firstTI.next(firstTuple)) {
         if ( ! secondTI.next(secondTuple)) {
             return false;
-        }
-
-        if ( ! firstTuple.equals(secondTuple)) {
+        } else if ( ! firstTuple.equals(secondTuple)) {
             return false;
         }
     }

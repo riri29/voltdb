@@ -125,7 +125,8 @@ class TempTable : public AbstractTempTable {
     // ------------------------------------------------------------------
     // UTILITIY
     // ------------------------------------------------------------------
-    virtual std::string tableType() const;
+    virtual std::string tableTypeName() const;
+    StorageTableType tableType() const;
     virtual TableStats* getTableStats();
     virtual const TempTableLimits* getTempTableLimits() const {
         return m_limits;

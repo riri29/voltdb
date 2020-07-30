@@ -123,7 +123,7 @@ TableStats::TableStats(Table* table)
 void TableStats::configure(std::string const& name) {
     StatsSource::configure(name);
     m_tableName = ValueFactory::getStringValue(m_table->name());
-    m_tableType = ValueFactory::getStringValue(m_table->tableType());
+    m_tableType = ValueFactory::getStringValue(m_table->tableTypeName());
 }
 
 /**

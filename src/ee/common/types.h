@@ -412,7 +412,7 @@ enum class TableStreamType : char {
 };
 
 // Serialization special values returned by serializeMore(), etc. instead
-// of the normal count. There's only one possible value for now.
+// of the normal count.
 enum TableStreamSerializationError {
     TABLE_STREAM_SERIALIZATION_ERROR = -1,
     TABLE_STREAM_SERIALIZATION_ERROR_MORE_TUPLES = -2
@@ -538,7 +538,7 @@ enum TupleSerializationFormat { TUPLE_SERIALIZATION_NATIVE = 0, TUPLE_SERIALIZAT
 // ------------------------------------------------------------------
 // Endianess
 // ------------------------------------------------------------------
-enum Endianess { BYTE_ORDER_BIG_ENDIAN = 0, BYTE_ORDER_LITTLE_ENDIAN = 1 };
+enum class Endianess : char { big = 0, little = 1 };
 
 // ------------------------------------------------------------------
 // Types of DR conflict (keep sync with DRConflictType at PartitionDRGateway.java)
@@ -617,6 +617,11 @@ enum TableType {
                                        PERSISTENT_EXPORT_UPDATE,
      PERSISTENT_EXPORT_INSERT_DELETE_UPDATE = PERSISTENT_EXPORT_INSERT_DELETE +
                                               PERSISTENT_EXPORT_UPDATE,
+};
+
+// used for table::tableType() identification
+enum class StorageTableType : char {
+    persistent, streamed, temp, large_temp
 };
 
 inline bool tableTypeIsExportStream(TableType tableType) {

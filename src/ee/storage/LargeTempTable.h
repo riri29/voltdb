@@ -100,8 +100,12 @@ public:
     }
 
     /** The type of this table, useful for debugging */
-    std::string tableType() const override {
+    std::string tableTypeName() const override {
         return "LargeTempTable";
+    }
+
+    StorageTableType tableType() const override {
+        return StorageTableType::large_temp;
     }
 
     /** This method seems to be used by some plan nodes, but the
