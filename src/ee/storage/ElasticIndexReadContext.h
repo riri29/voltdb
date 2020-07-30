@@ -14,12 +14,10 @@
  * You should have received a copy of the GNU Affero General Public License
  * along with VoltDB.  If not, see <http://www.gnu.org/licenses/>.
  */
-#ifndef ELASTIC_INDEX_READ_CONTEXT_H_
-#define ELASTIC_INDEX_READ_CONTEXT_H_
+#pragma once
 
 #include <string>
 #include <vector>
-#include <boost/shared_ptr.hpp>
 #include "common/types.h"
 #include "storage/ElasticIndex.h"
 #include "storage/TableStreamer.h"
@@ -88,7 +86,7 @@ private:
     const std::vector<std::string> &m_predicateStrings;
 
     /// Elastic index iterator
-    boost::shared_ptr<ElasticIndexTupleRangeIterator> m_iter;
+    std::shared_ptr<ElasticIndexTupleRangeIterator> m_iter;
 
     /// Set to true after index was completely materialized.
     bool m_materialized;
@@ -98,4 +96,3 @@ private:
 
 }
 
-#endif // ELASTIC_INDEX_READ_CONTEXT_H_

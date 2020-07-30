@@ -15,6 +15,7 @@
  * along with VoltDB.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "StreamPredicateList.h"
 #include "TupleOutputStream.h"
 #include "TupleOutputStreamProcessor.h"
 #include "tabletuple.h"
@@ -23,37 +24,32 @@ namespace voltdb {
 
 /** Default constructor. */
 TupleOutputStreamProcessor::TupleOutputStreamProcessor()
-    : boost::ptr_vector<TupleOutputStream>()
-{
+    : boost::ptr_vector<TupleOutputStream>() {
     clearState();
 }
 
 /** Constructor with initial size. */
 TupleOutputStreamProcessor::TupleOutputStreamProcessor(std::size_t nBuffers)
-    : boost::ptr_vector<TupleOutputStream>(nBuffers)
-{
+    : boost::ptr_vector<TupleOutputStream>(nBuffers) {
     clearState();
 }
 
 /** Constructor for a single stream. Convenient for backward compatibility in tests. */
 TupleOutputStreamProcessor::TupleOutputStreamProcessor(void *data, std::size_t length)
-    : boost::ptr_vector<TupleOutputStream>(1)
-{
+    : boost::ptr_vector<TupleOutputStream>(1) {
     clearState();
     add(data, length);
 }
 
 /** Private method used by constructors, etc. to clear state. */
-void TupleOutputStreamProcessor::clearState()
-{
+void TupleOutputStreamProcessor::clearState() {
     m_maxTupleLength = 0;
     m_predicates = NULL;
     m_table = NULL;
 }
 
 /** Convenience method to create and add a new TupleOutputStream. */
-TupleOutputStream &TupleOutputStreamProcessor::add(void *data, std::size_t length)
-{
+TupleOutputStream &TupleOutputStreamProcessor::add(void *data, std::size_t length) {
     std::auto_ptr<TupleOutputStream> out(new TupleOutputStream(data, length));
     push_back(out);
     return *out;
@@ -64,8 +60,7 @@ void TupleOutputStreamProcessor::open(PersistentTable &table,
                                       std::size_t maxTupleLength,
                                       int32_t partitionId,
                                       StreamPredicateList &predicates,
-                                      std::vector<bool> &predicateDeletes)
-{
+                                      std::vector<bool> &predicateDeletes) {
     m_table = &table;
     m_maxTupleLength = maxTupleLength;
     // It must be either one predicate per output stream or none at all.
@@ -81,8 +76,7 @@ void TupleOutputStreamProcessor::open(PersistentTable &table,
 }
 
 /** Stop serializing. */
-void TupleOutputStreamProcessor::close()
-{
+void TupleOutputStreamProcessor::close() {
     for (TupleOutputStreamProcessor::iterator iter = begin(); iter != end(); ++iter) {
         iter->endRows();
     }
@@ -94,8 +88,8 @@ void TupleOutputStreamProcessor::close()
  * Expects buffer space was already checked.
  * Returns true when the caller should yield to allow other work to proceed.
  */
-bool TupleOutputStreamProcessor::writeRow(TableTuple &tuple, const HiddenColumnFilter &hiddenColumnFilter, bool *deleteRow)
-{
+bool TupleOutputStreamProcessor::writeRow(
+        TableTuple &tuple, const HiddenColumnFilter &hiddenColumnFilter, bool *deleteRow) {
     if (m_table == NULL) {
         throwFatalException("TupleOutputStreamProcessor::writeRow() was called before open().");
     }

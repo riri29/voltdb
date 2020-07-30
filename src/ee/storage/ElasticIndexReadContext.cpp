@@ -50,7 +50,7 @@ ElasticIndexReadContext::~ElasticIndexReadContext() {}
  */
 TableStreamerContext::ActivationReturnCode
 ElasticIndexReadContext::handleActivation(TableStreamType streamType) {
-    if (streamType != TABLE_STREAM_ELASTIC_INDEX_READ) {
+    if (streamType != TableStreamType::elastic_index_read) {
         return ACTIVATION_UNSUPPORTED;
     } else if (!m_surgeon.hasIndex()) {
         LogManager::getThreadLogger(LOGGERID_HOST)->log(LOGLEVEL_INFO,
@@ -77,7 +77,7 @@ ElasticIndexReadContext::handleActivation(TableStreamType streamType) {
  * Deactivation handler.
  */
 bool ElasticIndexReadContext::handleDeactivation(TableStreamType streamType) {
-    if (streamType == TABLE_STREAM_ELASTIC_INDEX_READ) {
+    if (streamType == TableStreamType::elastic_index_read) {
         // This context is no longer needed.
         return false;
     }

@@ -69,11 +69,11 @@ map<ValueType, string> const mapOfTypeName {
 };
 
 map<TableStreamType, string> const mapOfStreamTypeName {
-   {TABLE_STREAM_SNAPSHOT, "TABLE_STREAM_SNAPSHOT"},
-   {TABLE_STREAM_ELASTIC_INDEX, "TABLE_STREAM_ELASTIC_INDEX"},
-   {TABLE_STREAM_ELASTIC_INDEX_READ, "TABLE_STREAM_ELASTIC_INDEX_READ"},
-   {TABLE_STREAM_ELASTIC_INDEX_CLEAR, "TABLE_STREAM_ELASTIC_INDEX_CLEAR"},
-   {TABLE_STREAM_NONE, "TABLE_STREAM_NONE"}
+   {TableStreamType::snapshot, "TABLE_STREAM_SNAPSHOT"},
+   {TableStreamType::elastic_index, "TABLE_STREAM_ELASTIC_INDEX"},
+   {TableStreamType::elastic_index_read, "TABLE_STREAM_ELASTIC_INDEX_READ"},
+   {TableStreamType::elastic_index_clear, "TABLE_STREAM_ELASTIC_INDEX_CLEAR"},
+   {TableStreamType::none, "TABLE_STREAM_NONE"}
 };
 
 map<string, ValueType> const mapToValueType = revert(mapOfTypeName);

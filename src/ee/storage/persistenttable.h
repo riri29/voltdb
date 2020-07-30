@@ -21,7 +21,6 @@
 #include <vector>
 #include <iostream>
 #include <boost/scoped_ptr.hpp>
-#include <boost/shared_ptr.hpp>
 #include <boost/optional.hpp>
 #include "common/debuglog.h"
 #include "common/types.h"
@@ -114,7 +113,7 @@ public:
     ElasticIndex::const_iterator indexIteratorUpperBound(int32_t upperBound) const;
     ElasticIndex::iterator indexEnd();
     ElasticIndex::const_iterator indexEnd() const;
-    boost::shared_ptr<ElasticIndexTupleRangeIterator>
+    std::shared_ptr<ElasticIndexTupleRangeIterator>
             getIndexTupleRangeIterator(ElasticIndexHashRange const& range);
     void activateSnapshot(TableStreamType streamType);
     void printIndex(std::ostream& os, int32_t limit) const;
@@ -970,11 +969,11 @@ inline bool PersistentTableSurgeon::hasStreamType(TableStreamType streamType) co
     return m_table.m_tableStreamer->hasStreamType(streamType);
 }
 
-inline boost::shared_ptr<ElasticIndexTupleRangeIterator>
+inline std::shared_ptr<ElasticIndexTupleRangeIterator>
 PersistentTableSurgeon::getIndexTupleRangeIterator(ElasticIndexHashRange const& range) {
     vassert(m_index != NULL);
     vassert(m_table.m_schema != NULL);
-    return boost::shared_ptr<ElasticIndexTupleRangeIterator>(
+    return std::shared_ptr<ElasticIndexTupleRangeIterator>(
             new ElasticIndexTupleRangeIterator(*m_index, *m_table.m_schema, range));
 }
 

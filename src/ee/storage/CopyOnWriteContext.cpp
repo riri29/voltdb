@@ -54,14 +54,14 @@ CopyOnWriteContext::CopyOnWriteContext(
 TableStreamerContext::ActivationReturnCode
 CopyOnWriteContext::handleActivation(TableStreamType streamType) {
     // Only support snapshot streams.
-    if (streamType != TABLE_STREAM_SNAPSHOT) {
+    if (streamType != TableStreamType::snapshot) {
         return ACTIVATION_UNSUPPORTED;
     } else if (m_surgeon.hasIndex() && !m_surgeon.isIndexingComplete()) {
         LogManager::getThreadLogger(LOGGERID_HOST)->log(LOGLEVEL_WARN,
             "COW context activation is not allowed while elastic indexing is in progress.");
         return ACTIVATION_FAILED;
     } else {
-        m_surgeon.activateSnapshot(TABLE_STREAM_SNAPSHOT);
+        m_surgeon.activateSnapshot(TableStreamType::snapshot);
         return ACTIVATION_SUCCEEDED;
     }
 }
@@ -72,7 +72,7 @@ CopyOnWriteContext::handleActivation(TableStreamType streamType) {
 TableStreamerContext::ActivationReturnCode
 CopyOnWriteContext::handleReactivation(TableStreamType streamType) {
     // Not support multiple snapshot streams.
-    if (streamType == TABLE_STREAM_SNAPSHOT) {
+    if (streamType == TableStreamType::snapshot) {
         return ACTIVATION_FAILED;
     } else {
         return ACTIVATION_UNSUPPORTED;
@@ -110,7 +110,7 @@ int64_t CopyOnWriteContext::handleStreamMore(TupleOutputStreamProcessor &outputS
         // or the byte count threshold is hit.
         bool yield = false;
         while (!yield) {
-            bool hasMore = table.nextSnapshotTuple(tuple, TABLE_STREAM_SNAPSHOT);
+            bool hasMore = table.nextSnapshotTuple(tuple, TableStreamType::snapshot);
             if (!hasMore) {
                 yield = true;
                 if (m_tuplesRemaining > 0) {
@@ -158,7 +158,7 @@ int64_t CopyOnWriteContext::handleStreamMore(TupleOutputStreamProcessor &outputS
     }
 
     if (retValue == 0) {
-        if (!table.stopSnapshot(TABLE_STREAM_SNAPSHOT)) {
+        if (!table.stopSnapshot(TableStreamType::snapshot)) {
             std::ostringstream buf;
             buf << "Stream snapshot is not drained on " << table.name() << std::endl;
             LogManager::getThreadLogger(LOGGERID_HOST)->log(LOGLEVEL_ERROR, buf.str().c_str());

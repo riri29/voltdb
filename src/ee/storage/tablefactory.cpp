@@ -57,9 +57,9 @@ Table* TableFactory::getPersistentTable(
             const std::vector<std::string> &columnNames, char *signature, bool tableIsMaterialized,
             int partitionColumn, TableType tableType, int tableAllocationTargetSize,
             int tupleLimit, bool drEnabled, bool isReplicated) {
-    Table *table = NULL;
-    StreamedTable *streamedTable = NULL;
-    PersistentTable *persistentTable = NULL;
+    Table *table;
+    StreamedTable *streamedTable = nullptr;
+    PersistentTable *persistentTable = nullptr;
 
     if (tableTypeIsStream(tableType)) {
         table = streamedTable = new StreamedTable(partitionColumn, isReplicated);

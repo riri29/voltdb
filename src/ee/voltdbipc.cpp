@@ -1487,8 +1487,8 @@ void VoltDBIPC::getStats(struct ipc_command *cmd) {
 int8_t VoltDBIPC::activateTableStream(struct ipc_command *cmd) {
     activate_tablestream *activateTableStreamCommand = (activate_tablestream*) cmd;
     const voltdb::CatalogId tableId = ntohl(activateTableStreamCommand->tableId);
-    const voltdb::TableStreamType streamType =
-            static_cast<voltdb::TableStreamType>(ntohl(activateTableStreamCommand->streamType));
+    const voltdb::TableStreamType streamType = static_cast<voltdb::TableStreamType>(
+            ntohl(static_cast<uint32_t>(activateTableStreamCommand->streamType)));
 
     // Provide access to the serialized message data, i.e. the predicates.
     void* offset = activateTableStreamCommand->data;
@@ -1512,8 +1512,8 @@ int8_t VoltDBIPC::activateTableStream(struct ipc_command *cmd) {
 void VoltDBIPC::tableStreamSerializeMore(struct ipc_command *cmd) {
     tablestream_serialize_more *tableStreamSerializeMore = (tablestream_serialize_more*) cmd;
     const voltdb::CatalogId tableId = ntohl(tableStreamSerializeMore->tableId);
-    const voltdb::TableStreamType streamType =
-            static_cast<voltdb::TableStreamType>(ntohl(tableStreamSerializeMore->streamType));
+    const voltdb::TableStreamType streamType = static_cast<voltdb::TableStreamType>(
+            ntohl(static_cast<uint32_t>(tableStreamSerializeMore->streamType)));
     // Need to adapt the simpler incoming data describing buffers to conform to
     // what VoltDBEngine::tableStreamSerializeMore() needs. The incoming data
     // is an array of buffer lengths. The outgoing data must be an array of

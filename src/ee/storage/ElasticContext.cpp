@@ -47,7 +47,7 @@ TableStreamerContext* ElasticContext::cloneForTruncatedTable(PersistentTableSurg
     }
     ElasticContext *cloned = new ElasticContext(surgeon.getTable(), surgeon,
         getPartitionId(), m_predicateStrings, m_nTuplesPerCall);
-    cloned->handleActivation(TABLE_STREAM_ELASTIC_INDEX);
+    cloned->handleActivation(TableStreamType::elastic_index);
 
     TupleOutputStreamProcessor dummyProcessor;
     std::vector<int> dummyPosition;
@@ -79,9 +79,9 @@ TableStreamerContext* ElasticContext::cloneForTruncatedTable(PersistentTableSurg
 TableStreamerContext::ActivationReturnCode
 ElasticContext::handleActivation(TableStreamType streamType) {
     // Create the index?
-    if (streamType == TABLE_STREAM_ELASTIC_INDEX) {
+    if (streamType == TableStreamType::elastic_index) {
         // Can't activate an indexing stream during a snapshot.
-        if (m_surgeon.hasStreamType(TABLE_STREAM_SNAPSHOT)) {
+        if (m_surgeon.hasStreamType(TableStreamType::snapshot)) {
             LogManager::getThreadLogger(LOGGERID_HOST)->log(LOGLEVEL_WARN,
                 "Elastic context activation is not allowed while a snapshot is in progress.");
             return ACTIVATION_FAILED;
@@ -96,13 +96,13 @@ ElasticContext::handleActivation(TableStreamType streamType) {
         }
         m_surgeon.createIndex();
         //activate elastic index iterator
-        getTable().activateSnapshot(TABLE_STREAM_ELASTIC_INDEX);
+        getTable().activateSnapshot(TableStreamType::elastic_index);
         m_indexActive = true;
         return ACTIVATION_SUCCEEDED;
     }
 
     // Clear the index?
-    if (streamType == TABLE_STREAM_ELASTIC_INDEX_CLEAR) {
+    if (streamType == TableStreamType::elastic_index_clear) {
         if (m_surgeon.hasIndex()) {
             if (!m_surgeon.isIndexEmpty()) {
 
@@ -175,7 +175,7 @@ int64_t ElasticContext::handleStreamMore(TupleOutputStreamProcessor &outputStrea
     // Table changes are tracked through notifications.
     size_t i = 0;
     TableTuple tuple(getTable().schema());
-    bool moreRows = getTable().nextSnapshotTuple(tuple, TABLE_STREAM_ELASTIC_INDEX);
+    bool moreRows = getTable().nextSnapshotTuple(tuple, TableStreamType::elastic_index);
     while (moreRows) {
         if (getPredicates()[0].eval(&tuple).isTrue()) {
             m_surgeon.indexAdd(tuple);
@@ -184,10 +184,10 @@ int64_t ElasticContext::handleStreamMore(TupleOutputStreamProcessor &outputStrea
         if (++i == m_nTuplesPerCall) {
             break;
         }
-        moreRows = getTable().nextSnapshotTuple(tuple, TABLE_STREAM_ELASTIC_INDEX);
+        moreRows = getTable().nextSnapshotTuple(tuple, TableStreamType::elastic_index);
     }
     if (!moreRows) {
-        getTable().stopSnapshot(TABLE_STREAM_ELASTIC_INDEX);
+        getTable().stopSnapshot(TableStreamType::elastic_index);
     }
 
     bool indexingComplete = getTable().elasticIndexScanComplete();

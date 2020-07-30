@@ -25,21 +25,16 @@
 #include "storage/TableTupleAllocator.hpp"
 #include <algorithm>
 #include <array>
-#include <cstdio>
 #include <functional>
 #include <random>
-#include <thread>
 
-#include <common/NValue.hpp>
-#include <execution/VoltDBEngine.h>
-
+#include "common/NValue.hpp"
 #include "common/TupleOutputStream.h"
 #include "common/TupleOutputStreamProcessor.h"
 #include "common/TupleSchema.h"
 #include "common/TupleSchemaBuilder.h"
 #include "common/types.h"
 #include "common/ValueFactory.hpp"
-#include "common/ValuePeeker.hpp"
 #include "expressions/expressions.h"
 #include "indexes/tableindex.h"
 #include "indexes/tableindexfactory.h"
@@ -47,10 +42,8 @@
 #include "storage/ElasticContext.h"
 #include "storage/persistenttable.h"
 #include "storage/tablefactory.h"
-#include "storage/tableiterator.h"
 #include "storage/TableStreamerContext.h"
 #include "storage/tableutil.h"
-#include <vector>
 
 using namespace voltdb;
 using namespace voltdb::storage;
@@ -147,23 +140,35 @@ struct Spec {
         insertion, deletion, update, freeze, thaw, clear, stream
     };
     using spec_type = vector<pair<op_type, size_t>>;
-    Spec(size_t init, string const& s): m_arg(parse(s)), m_normalized(normalize(init, m_arg)) {}
+    Spec(size_t init, string const& s, bool fixed_rd):
+        m_arg(parse(s)), m_normalized(normalize(init, m_arg)),
+        m_rd(fixed_rd ? RD_FIXED : RD_R) {}
     spec_type operator()() const noexcept {
         return m_normalized;
     }
     string to_string() const noexcept {
         return deparse(m_normalized);
     }
-    static Spec generate(size_t, size_t, unsigned&);
+    mt19937& rd() noexcept {
+        return m_rd;
+    }
+    static mt19937& rd_fixed() noexcept {
+        return RD_FIXED;
+    }
+    static mt19937& rd_r() noexcept {
+        return RD_R;
+    }
+    static Spec generate(size_t, size_t, bool);
 private:
     spec_type const m_arg;
     spec_type const m_normalized;
-    static random_device rd;
+    mt19937& m_rd;
+    static mt19937 RD_FIXED, RD_R;
     static spec_type parse(string const&);
     static string deparse(spec_type const&);
     static spec_type normalize(size_t, spec_type const&);
 };
-random_device Spec::rd{};
+mt19937 Spec::RD_FIXED{0}, Spec::RD_R{random_device{}()};
 
 typename Spec::spec_type Spec::parse(string const& src) {
     vector<string> delimited;
@@ -231,6 +236,7 @@ typename Spec::spec_type Spec::parse(string const& src) {
                         default:
                             snprintf(message, sizeof message,
                                     "Unknown operation %c in %s", s[0], src.c_str());
+                            message[sizeof message - 1] = 0;
                             throw logic_error(message);
                     }
                     return acc;
@@ -320,7 +326,9 @@ typename Spec::spec_type Spec::normalize(size_t init, typename Spec::spec_type c
                                 // thawing, unless stream had already drained
                                 snd.emplace_back(op_type::stream, fst.m_frozen_cnt = 0);
                             }
-                            snd.emplace_back(entry);
+                            // snd.emplace_back(entry); NOTE:
+                            // thaw action is implicitly handled
+                            // by CopyOnWriteContext::handleStreamMore()
                         }
                         break;
                     case op_type::stream:
@@ -338,7 +346,7 @@ typename Spec::spec_type Spec::normalize(size_t init, typename Spec::spec_type c
 }
 
 
-Spec Spec::generate(size_t init_len, size_t len, unsigned& seed) {
+Spec Spec::generate(size_t init_len, size_t len, bool rand_fixed) {
     static map<op_type, size_t> const prob{        // individual probabilities
         make_pair(op_type::update, 12),
         make_pair(op_type::insertion, 15),
@@ -360,7 +368,7 @@ Spec Spec::generate(size_t init_len, size_t len, unsigned& seed) {
     static uniform_int_distribution<size_t> unif(0, sum_prop);
     static normal_distribution<> nrange(7, 3);
 
-    mt19937 rgen(seed ? seed : (seed = rd()));
+    auto& rgen = rand_fixed ? Spec::rd_fixed() : Spec::rd_r();
     auto const truncated_normal = [&rgen]() {
         auto const r = nrange(rgen);
         return max<size_t>(r, 0lu);
@@ -403,7 +411,9 @@ Spec Spec::generate(size_t init_len, size_t len, unsigned& seed) {
                 init_seq.append(" ");
         }
     }
-    return {init_len, init_seq.empty() ? init_seq : init_seq.substr(0, init_seq.size() - 1)};
+    return {init_len,
+        init_seq.empty() ? init_seq : init_seq.substr(0, init_seq.size() - 1),
+        rand_fixed};
 }
 
 /**
@@ -419,8 +429,9 @@ class ProcPersistenTable {
     static char SIGNATURE[20];
     static NValue generate(size_t, ValueType, size_t limit);
     void insert_row(size_t);
+    void mutate(typename Spec::op_type, size_t, bool);
 public:
-    ProcPersistenTable() {
+    ProcPersistenTable(bool replicated) {
         int const partitionId = 0;
         m_engine->initialize(1,                    // cluster index
                 1,                                 // site id
@@ -441,15 +452,21 @@ public:
                 reinterpret_cast<char const*>(data),       // config
                 nullptr,                           // config ptr
                 0);                                // num tokens
-        m_table.reset(
-                dynamic_cast<PersistentTable*>(TableFactory::getPersistentTable(
+        m_table.reset(dynamic_cast<PersistentTable*>(
+                    TableFactory::getPersistentTable(
                         0,                         // database id
                         "Foo",                     // table name
                         Config1::SCHEMA,
                         Config1::COLUMN_NAMES,
                         SIGNATURE,
                         false,                     // is materialized
-                        0)));                      // partition column
+                        replicated ? -1 : 0,       // always partition on 0-th column, if the table is partitioned
+                        PERSISTENT,                // table type
+                        0,                         // table allocator target size
+                        numeric_limits<int>::max(),// tuple limit: max number of columns in a table
+                        false,                     // DR enabled
+                        replicated)));             // is replicated
+        assert(replicated == m_table->isReplicatedTable());
         for_each(Config::INDICES.cbegin(), Config::INDICES.cend(),
                 [this](TableIndex* ind) { m_table->addIndex(ind); });
         if (Config::PK_INDEX_INDEX >= 0) {
@@ -595,13 +612,85 @@ template<typename Config> inline bool ProcPersistenTable<Config>::valid(TableTup
     return valid(tuple, id_of(tuple));
 }
 
+template<typename Config> void ProcPersistenTable<Config>::mutate(
+        typename Spec::op_type op, size_t payload, bool rand_fixed) {
+    auto& rd = rand_fixed ? Spec::rd_fixed() : Spec::rd_r();
+    auto const nrows = table().allocator().size();
+    vector<void const*> addresses;
+    static uniform_int_distribution<size_t> unif(0, numeric_limits<size_t>::max());
+    bool status;
+    char config[4] = {0};
+    ReferenceSerializeInputBE input(config, 4);
+    constexpr auto const BUFFER_SIZE = 131072;
+    char serialBuf[BUFFER_SIZE] = {0};
+    switch (op) {
+        case Spec::op_type::insertion:
+            for (auto i = 0lu; i < payload; ++i) {
+                insert_row(nrows + i);
+            }
+            break;
+        case Spec::op_type::update:
+            assert(! payload);
+            addresses = slots();
+            update(slots[unif(rd) % slots.size()], unif(rd) % slots.size());
+            break;
+        case Spec::op_type::deletion:
+            assert(payload);
+            addresses = random_sample(slots(), payload);
+            for_each(addresses.cbegin(), addresses.cend(), [this](void const* p) {
+                        table().deleteTuple(
+                                table().tempTuple().move(const_cast<void*>(p)));
+                    });
+            break;
+        case Spec::op_type::clear:
+            assert(! payload);
+            table().truncateTable(m_engine.get());
+            break;
+        case Spec::op_type::freeze:
+            assert(! payload);
+            status = table().activateStream(
+                    TableStreamType::snapshot, HiddenColumnFilter::NONE,
+                    0,                             // TODO: partition id
+                    0,                             // TODO: catalog table id
+                    input);                        // ReferenceSerializeInputBE
+            assert(status);
+            break;
+        case Spec::op_type::thaw:
+            throw logic_error("Should not explicitly thaw");
+        case Spec::op_type::stream:
+            {
+                vector<unique_ptr<char[]>> buffers(1/*npartitions*/,
+                        unique_ptr<char[]>{});
+                TupleOutputStreamProcessor os(serialBuf, sizeof serialBuf);
+                for (auto i = 0; i < 1/*npartitions*/; i++) {
+                    os.add((void*)buffers[i].get(), BUFFER_SIZE);
+                }
+                std::vector<int> retPositions;
+                auto const payload_ub = payload == 0 ? numeric_limits<size_t>::max() : payload;
+                auto i = 0lu;
+                while (i++ < payload_ub) {
+                    auto const remaining = table().streamMore(
+                            os, TableStreamType::snapshot, retPositions);
+                    // validate...
+                    if (remaining < 0) {
+                        assert(payload == 0 || i == payload);
+                        break;
+                    } else {
+                        assert(os.size() == retPositions.size());
+                    }
+                }
+            }
+    }
+}
+
 TEST_F(PersistentTableAllocatorTest, TestSpec) {
     unsigned seed = 5;
     puts(Spec::generate(30, 200, seed).to_string().c_str());
+    ASSERT_EQ(5, seed);
 }
 
 TEST_F(PersistentTableAllocatorTest, Dummy) {
-    ProcPersistenTable<Config1> t;
+    ProcPersistenTable<Config1> t(false/*replicated*/);
     t.insert(50);
     size_t i = 0;
     ASSERT_FALSE(storage::until<typename PersistentTable::txn_const_iterator>(

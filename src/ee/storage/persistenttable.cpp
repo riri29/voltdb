@@ -150,7 +150,7 @@ PersistentTable::~PersistentTable() {
 
     checkContext("Deleting");
     if (tableTypeIsStream(m_tableType) == false) {
-       stopSnapshot(TABLE_STREAM_SNAPSHOT, true);
+       stopSnapshot(TableStreamType::snapshot, true);
        allocator().template clear<storage::truth>();
     }
 
@@ -362,7 +362,7 @@ void PersistentTable::truncateTable(VoltDBEngine* engine) {
     vassert(emptyTable);
     vassert(emptyTable->views().size() == 0);
     if (m_tableStreamer &&
-        m_tableStreamer->hasStreamType(TABLE_STREAM_ELASTIC_INDEX)) {
+        m_tableStreamer->hasStreamType(TableStreamType::elastic_index)) {
         // There is Elastic Index work going on and
         // it should continue to access the old table.
         // Add one reference count to keep the original table.
@@ -419,8 +419,7 @@ void PersistentTable::truncateTable(VoltDBEngine* engine) {
         // Create and register an undo action.
         UndoReleaseAction* undoAction = new (*uq) PersistentTableUndoTruncateTableAction(tcd, this, emptyTable);
         SynchronizedThreadLock::addTruncateUndoAction(isReplicatedTable(), uq, undoAction, this);
-    }
-    else {
+    } else {
         throwFatalException("Attempted to truncate table %s when there was no "
                             "active undo quantum even though one was expected", m_name.c_str());
     }
@@ -551,7 +550,7 @@ void PersistentTable::swapTableState(PersistentTable* otherTable) {
     otherTable->m_stats.updateTableName(otherTable->m_name);
 
     if (m_tableStreamer &&
-            m_tableStreamer->hasStreamType(TABLE_STREAM_ELASTIC_INDEX)) {
+            m_tableStreamer->hasStreamType(TableStreamType::elastic_index)) {
         // There is Elastic Index work going on and
         // it should continue to access the old table.
         // Add one reference count to keep the original table.
@@ -1212,7 +1211,7 @@ void PersistentTable::deleteTuple(TableTuple& target, bool fallible, bool remove
         SynchronizedThreadLock::addDeleteUndoAction(isReplicatedTable(), uq, undoAction, this);
         if (isTableWithExportDeletes(m_tableType)) {
             vassert(m_shadowStream != nullptr);
-            if (!isReplicatedTable() || m_executorContext->getPartitionId() == 0) {
+            if (! isReplicatedTable() || m_executorContext->getPartitionId() == 0) {
                 m_shadowStream->streamTuple(target, ExportTupleStream::STREAM_ROW_TYPE::DELETE);
             }
         }
@@ -1223,7 +1222,7 @@ void PersistentTable::deleteTuple(TableTuple& target, bool fallible, bool remove
     //
     // Note that this is guaranteed to succeed, since we are inserting an existing tuple
     // (soon to be deleted) into the delta table.
-    if (insertTupleIntoDeltaTable(target) || !m_views.empty()) {
+    if (insertTupleIntoDeltaTable(target) || ! m_views.empty()) {
         SetAndRestorePendingDeleteFlag setPending(target);
         // for multi-table views
         for (auto viewHandler : m_viewHandlers) {
@@ -1236,28 +1235,26 @@ void PersistentTable::deleteTuple(TableTuple& target, bool fallible, bool remove
         }
     }
 
-    if (createUndoAction) {
-        return;
+    if (! createUndoAction) {
+        // Here, for reasons of infallibility or no active UndoLog, there is no undo, there is only DO.
+        // For replicated table
+        // delete the tuple directly but preserve the deleted tuples to tempTable for cowIterator
+        // the same way as Update
+
+        // A snapshot (background scan) in progress can still cause a hold-up.
+        // notifyTupleDelete() defaults to returning true for all context types
+        // other than CopyOnWriteContext.
+        if (m_tableStreamer != nullptr) {
+            m_tableStreamer->notifyTupleDelete(target);
+        }
+
+        target.setActiveFalse();
+        allocator().template remove<storage::truth>(
+                target.address(),
+                bind(&PersistentTable::compact, this,
+                    target.address(), std::placeholders::_1, std::placeholders::_2));
+        m_invisibleTuplesPendingDeleteCount = 0;
     }
-
-    // Here, for reasons of infallibility or no active UndoLog, there is no undo, there is only DO.
-    // For replicated table
-    // delete the tuple directly but preserve the deleted tuples to tempTable for cowIterator
-    // the same way as Update
-
-    // A snapshot (background scan) in progress can still cause a hold-up.
-    // notifyTupleDelete() defaults to returning true for all context types
-    // other than CopyOnWriteContext.
-    if (m_tableStreamer != nullptr) {
-         m_tableStreamer->notifyTupleDelete(target);
-    }
-
-    target.setActiveFalse();
-    allocator().template remove<storage::truth>(
-            target.address(),
-            bind(&PersistentTable::compact, this,
-                target.address(), std::placeholders::_1, std::placeholders::_2));
-    m_invisibleTuplesPendingDeleteCount = 0;
 }
 
 
@@ -1778,23 +1775,23 @@ int64_t PersistentTable::validatePartitioning(TheHashinator* hashinator, int32_t
 }
 
 void PersistentTable::activateSnapshot(TableStreamType streamType) {
-   if (streamType == TABLE_STREAM_SNAPSHOT) {
+   if (streamType == TableStreamType::snapshot) {
        std::ostringstream buffer;
        if (m_snapIt != nullptr) {
           buffer << "Snapshot activated when previous one is not done on " << name() << std::endl;
           LogManager::getThreadLogger(LOGGERID_HOST)->log(LOGLEVEL_WARN,buffer.str().c_str());
        }
-       stopSnapshot(TABLE_STREAM_SNAPSHOT, true);
+       stopSnapshot(TableStreamType::snapshot, true);
        m_snapIt = allocator().template freeze<storage::truth>();
        m_snapshotStarted = true;
        vassert(m_invisibleTuplesPendingDeleteCount == 0);
-   } else if (streamType == TABLE_STREAM_ELASTIC_INDEX) {
+   } else if (streamType == TableStreamType::elastic_index) {
        m_elasticIt = std::make_shared<ElasticIndexIterator>(allocator());
    }
 }
 
 bool PersistentTable::stopSnapshot(TableStreamType streamType, bool forceDeactivation) {
-    if (streamType == TABLE_STREAM_SNAPSHOT) {
+    if (streamType == TableStreamType::snapshot) {
         if (m_snapIt != nullptr) {
             // The iterator must go beyond the last entry to be drained.
             if (!m_snapIt->drained()) {
@@ -1814,7 +1811,7 @@ bool PersistentTable::stopSnapshot(TableStreamType streamType, bool forceDeactiv
                 return true;
             }
         }
-    } else if (streamType == TABLE_STREAM_ELASTIC_INDEX) {
+    } else if (streamType == TableStreamType::elastic_index) {
         if (m_elasticIt && m_elasticIt->drained()) {
             m_elasticIt.reset();
         }
@@ -1823,7 +1820,7 @@ bool PersistentTable::stopSnapshot(TableStreamType streamType, bool forceDeactiv
 }
 
 bool PersistentTable::nextSnapshotTuple(TableTuple& tuple, TableStreamType streamType) {
-    if (streamType == TABLE_STREAM_SNAPSHOT) {
+    if (streamType == TableStreamType::snapshot) {
         if (m_snapshotStarted) {
             m_snapshotStarted = false;
         } else {
@@ -1834,7 +1831,7 @@ bool PersistentTable::nextSnapshotTuple(TableTuple& tuple, TableStreamType strea
         } else {
             tuple.move(**m_snapIt);
         }
-    } else if (streamType == TABLE_STREAM_ELASTIC_INDEX) {
+    } else if (streamType == TableStreamType::elastic_index) {
         if (m_elasticIt->drained()) {
             return false;
         } else {

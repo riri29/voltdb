@@ -15,12 +15,10 @@
  * along with VoltDB.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef TUPLEOUTPUTSTREAMPROCESSOR_H_
-#define TUPLEOUTPUTSTREAMPROCESSOR_H_
+#pragma once
 
 #include <cstddef>
 #include <boost/ptr_container/ptr_vector.hpp>
-#include "StreamPredicateList.h"
 #include "common/HiddenColumnFilter.h"
 
 namespace voltdb {
@@ -31,7 +29,6 @@ class StreamPredicateList;
 
 /** TupleOutputStream processor. Manages and outputs to multiple TupleOutputStream's. */
 class TupleOutputStreamProcessor : public boost::ptr_vector<TupleOutputStream> {
-
 public:
 
     /** Default constructor. */
@@ -89,4 +86,3 @@ private:
 
 } // namespace voltdb
 
-#endif // TUPLEOUTPUTSTREAMPROCESSOR_H_

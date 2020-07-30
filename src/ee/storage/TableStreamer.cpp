@@ -88,24 +88,24 @@ bool TableStreamer::activateStream(PersistentTableSurgeon &surgeon, TableStreamT
         try {
             std::shared_ptr<TableStreamerContext> context;
             switch (streamType) {
-                case TABLE_STREAM_SNAPSHOT:
+                case TableStreamType::snapshot:
                     // Constructor can throw exception when it parses the predicates.
                     context.reset(
                         new CopyOnWriteContext(m_table, surgeon, m_partitionId, filter,
                             predicateStrings, m_table.activeTupleCount()));
                     break;
 
-                case TABLE_STREAM_ELASTIC_INDEX:
+                case TableStreamType::elastic_index:
                     context.reset(new ElasticContext(m_table, surgeon, m_partitionId,
                                 predicateStrings));
                     break;
 
-                case TABLE_STREAM_ELASTIC_INDEX_READ:
+                case TableStreamType::elastic_index_read:
                     context.reset(new ElasticIndexReadContext(m_table, surgeon, m_partitionId,
                                 predicateStrings));
                     break;
 
-                case TABLE_STREAM_ELASTIC_INDEX_CLEAR:
+                case TableStreamType::elastic_index_clear:
                     VOLT_DEBUG("Clear elastic index before materializing it.");
                     // not an error
                     break;

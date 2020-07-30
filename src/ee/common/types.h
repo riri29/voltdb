@@ -395,20 +395,20 @@ enum class IndexLookupType {
 // values. This minimizes the spread of stream type assumptions and
 // makes it less painful to change the enum.
 // ------------------------------------------------------------------
-enum TableStreamType {
+enum class TableStreamType : char {
     // Table stream types that use predicates.
-    TABLE_STREAM_SNAPSHOT,
-    TABLE_STREAM_ELASTIC_INDEX,
+    snapshot,
+    elastic_index,
 
     // Materialize previously-captured index.
-    TABLE_STREAM_ELASTIC_INDEX_READ,
+    elastic_index_read,
 
     // Clear previously-captured index using the same range predicate that
-    // was used for TABLE_STREAM_ELASTIC_INDEX_READ.
-    TABLE_STREAM_ELASTIC_INDEX_CLEAR,
+    // was used for TableStreamType::TableStreamType::elastic_index_read.
+    elastic_index_clear,
 
     // Table stream type provided when no stream is active.
-    TABLE_STREAM_NONE = -1
+    none = -1
 };
 
 // Serialization special values returned by serializeMore(), etc. instead
@@ -422,27 +422,27 @@ enum TableStreamSerializationError {
  * Return true if the table stream type uses predicates.
  */
 inline bool tableStreamTypeHasPredicates(TableStreamType streamType) {
-    return streamType == TABLE_STREAM_SNAPSHOT
-        || streamType == TABLE_STREAM_ELASTIC_INDEX
-        || streamType == TABLE_STREAM_ELASTIC_INDEX_READ;
+    return streamType == TableStreamType::snapshot
+        || streamType == TableStreamType::elastic_index
+        || streamType == TableStreamType::elastic_index_read;
 }
 
 /**
  * Return true if the table stream type is performing a snapshot.
  */
 inline bool tableStreamTypeIsSnapshot(TableStreamType streamType) {
-    return streamType == TABLE_STREAM_SNAPSHOT;
+    return streamType == TableStreamType::snapshot;
 }
 
 /**
  * Return true if the table stream type valid.
  */
 inline bool tableStreamTypeIsValid(TableStreamType streamType) {
-    return streamType != TABLE_STREAM_NONE;
+    return streamType != TableStreamType::none;
 }
 
 inline bool tableStreamTypeIsStreamIndexing(TableStreamType streamType) {
-    return streamType == TABLE_STREAM_ELASTIC_INDEX;
+    return streamType == TableStreamType::elastic_index;
 }
 
 // ------------------------------------------------------------------
