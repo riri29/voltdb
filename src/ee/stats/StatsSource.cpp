@@ -24,6 +24,10 @@
 using namespace voltdb;
 using namespace std;
 
+void StatsSource::teardown(Table* tbl) {
+    delete tbl;
+}
+
 vector<string> StatsSource::generateBaseStatsColumnNames() {
     vector<string> columnNames;
     columnNames.push_back("TIMESTAMP");
@@ -62,9 +66,6 @@ void StatsSource::populateBaseSchema(vector<ValueType> &types, vector<int32_t> &
     inBytes.push_back(false);
 }
 
-StatsSource::StatsSource()  : m_statsTable(NULL) {
-}
-
 /**
  * Configure a StatsSource superclass for a set of statistics. Since this class is only used in the EE it can be assumed that
  * it is part of an Execution Site and that there is a site Id.
@@ -92,7 +93,7 @@ void StatsSource::configure(string name) {
         m_columnName2Index[columnNames[ii]] = ii;
     }
 
-    m_statsTable.reset(TableFactory::buildTempTable(name, schema, columnNames, NULL));
+    m_statsTable.reset(TableFactory::buildTempTable(name, schema, columnNames, nullptr));
     m_statsTuple = m_statsTable->tempTuple();
 }
 

@@ -15,22 +15,18 @@
  * along with VoltDB.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef STATSSOURCE_H_
-#define STATSSOURCE_H_
+#pragma once
 
 #include "common/tabletuple.h"
 #include "common/ids.h"
 
-#include "boost/scoped_ptr.hpp"
-
 #include <string>
 #include <vector>
 #include <map>
+#include <memory>
 
 namespace voltdb {
 class Table;
-class TableFactory;
-class TupleSchema;
 class TableTuple;
 
 /**
@@ -54,7 +50,7 @@ public:
      * every stats table.  Usage by derived classes takes the same
      * pattern as generateBaseStatsColumnNames.
      */
-    static void populateBaseSchema(std::vector<voltdb::ValueType>& types,
+    static void populateBaseSchema(std::vector<ValueType>& types,
                                    std::vector<int32_t>& columnLengths,
                                    std::vector<bool>& allowNull,
                                    std::vector<bool>& inBytes);
@@ -62,7 +58,7 @@ public:
     /*
      * Do nothing constructor that initializes statTable_ and schema_ to NULL.
      */
-    StatsSource();
+    StatsSource() = default;
 
     /**
      * Configure a StatsSource superclass for a set of statistics. Since this class is only used in the EE it can be assumed that
@@ -85,7 +81,7 @@ public:
      * @param now Timestamp to return with each row
      * @return Pointer to a table containing the statistics.
      */
-    voltdb::Table* getStatsTable(int64_t siteId, int32_t partitionId, bool interval, int64_t now);
+    Table* getStatsTable(int64_t siteId, int32_t partitionId, bool interval, int64_t now);
 
     /*
      * Retrieve tuple containing the latest statistics available. An updated stat is requested from the derived class by calling
@@ -96,7 +92,7 @@ public:
      * @param Timestamp to embed in each row
      * @return Pointer to a table tuple containing the latest version of the statistics.
      */
-    voltdb::TableTuple* getStatsTuple(int64_t siteId, int32_t partitionId, bool interval, int64_t now);
+    TableTuple* getStatsTuple(int64_t siteId, int32_t partitionId, bool interval, int64_t now);
 
     /**
      * Retrieve the name of the table that this set of statistics is associated with.
@@ -115,7 +111,7 @@ protected:
      * Update the stats tuple with the latest statistics available to this StatsSource. Implemented by derived classes.
      * @parameter tuple TableTuple pointing to a row in the stats table.
      */
-    virtual void updateStatsTuple(voltdb::TableTuple *tuple) = 0;
+    virtual void updateStatsTuple(TableTuple *tuple) = 0;
 
     /**
      * Generates the list of column names that will be in the statTable_. Derived classes must override this method and call
@@ -128,7 +124,7 @@ protected:
      * Same pattern as generateStatsColumnNames except the return value is used as an offset into the tuple schema instead of appending to
      * end of a list.
      */
-    virtual void populateSchema(std::vector<voltdb::ValueType> &types, std::vector<int32_t> &columnLengths,
+    virtual void populateSchema(std::vector<ValueType> &types, std::vector<int32_t> &columnLengths,
             std::vector<bool> &allowNull, std::vector<bool> &inBytes);
 
     /**
@@ -142,24 +138,24 @@ protected:
     bool interval() { return m_interval; }
 
 private:
+    static void teardown(Table* tbl);
     /**
      * Table containing the stat information. Shared pointer used as a substitute for scoped_ptr due to forward
      * declaration.
      */
-    boost::scoped_ptr<voltdb::Table> m_statsTable;
+    std::unique_ptr<Table, decltype(&StatsSource::teardown)> m_statsTable{nullptr, &StatsSource::teardown};
 
     /**
      * Tuple used to modify the stat table.
      */
-    voltdb::TableTuple m_statsTuple;
+    TableTuple m_statsTuple;
 
-    voltdb::CatalogId m_hostId;
+    CatalogId m_hostId;
 
-    voltdb::NValue m_hostname;
+    NValue m_hostname;
 
     bool m_interval;
 
 };
 
 }
-#endif /* STATSCONTAINER_H_ */

@@ -321,7 +321,7 @@ protected:
     // DATA
     // ------------------------------------------------------------------
     TableTuple m_tempTuple{};
-    boost::scoped_array<char> m_tempTupleMemory;
+    std::unique_ptr<char[]> m_tempTupleMemory;
 
     TupleSchema const* m_schema = nullptr;
 

@@ -106,7 +106,7 @@ struct Config1 {
     static int32_t const SITES_PER_HOST = 1;
     static vector<string> const COLUMN_NAMES;
     static TupleSchema const* SCHEMA;
-    static array<TableIndex*, 3> const INDICES;
+    static array<TableIndex*, 2> const INDICES;
     static int const PK_INDEX_INDEX = 0;           // index into INDICES that is primary key
 };
 vector<string> const Config1::COLUMN_NAMES{"ID", "STRING", "GEOGRAPHY"};
@@ -116,10 +116,10 @@ TupleSchema const* Config1::SCHEMA = TupleSchemaBuilder(3)
     .setColumnAtIndex(1, ValueType::tVARCHAR, 512, false)
     .setColumnAtIndex(2, ValueType::tGEOGRAPHY, 2048, false)
     .build();
-array<TableIndex*, 3> const Config1::INDICES{
+array<TableIndex*, 2> const Config1::INDICES{
     Indexes::createIndex(Config1::SCHEMA, true, "pk", 0),
     Indexes::createIndex(Config1::SCHEMA, false, "vc", 1),
-    Indexes::createGeospatialIndex(Config1::SCHEMA, "pol_index", 2)
+//    Indexes::createGeospatialIndex(Config1::SCHEMA, "pol_index", 2)
 };
 
 /**
@@ -422,7 +422,10 @@ Spec Spec::generate(size_t init_len, size_t len, bool rand_fixed) {
 void teardown(PersistentTable* tbl) {
     if (tbl != nullptr) {
         ScopedReplicatedResourceLock::run([tbl]() {
-                ExecuteWithMpMemory::run([tbl]() {delete tbl;}, tbl->isReplicatedTable());
+                ExecuteWithMpMemory::run([tbl]() {
+                        delete tbl;
+                        puts("Deleted"); fflush(stdout);
+                    }, tbl->isReplicatedTable());
             }, tbl->isReplicatedTable());
     }
 }
@@ -435,6 +438,8 @@ template<typename Config>
 struct ProcPersistentTable {
     enum class partition_type : bool {replicated, partitioned};
     ProcPersistentTable(partition_type pt) {
+        SynchronizedThreadLock::resetEngineLocalsForTest();
+        m_engine.reset(new VoltDBEngine);
         int const partitionId = 0;
         m_engine->initialize(1,                    // cluster index
                 1,                                 // site id
@@ -499,9 +504,9 @@ struct ProcPersistentTable {
         return table().visibleTupleCount();
     }
 private:
-    unique_ptr<VoltDBEngine> m_engine{new VoltDBEngine{}};
     using table_ptr_type = unique_ptr<PersistentTable, decltype(&teardown)>;
     table_ptr_type m_table{nullptr, &teardown};
+    unique_ptr<VoltDBEngine> m_engine;
     size_t m_rowId = 0;
 
     static char SIGNATURE[20];
@@ -730,7 +735,7 @@ TEST_F(PersistentTableAllocatorTest, TestSpec) {
 }
 
 TEST_F(PersistentTableAllocatorTest, Dummy) {
-    ProcPersistentTable<Config1> t(ProcPersistentTable<Config1>::partition_type::partitioned);
+    ProcPersistentTable<Config1> t(ProcPersistentTable<Config1>::partition_type::replicated);
     t.insert(50);
     size_t i = 0;
     ASSERT_FALSE(storage::until<typename PersistentTable::txn_const_iterator>(
