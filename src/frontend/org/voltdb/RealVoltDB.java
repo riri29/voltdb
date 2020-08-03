@@ -1920,8 +1920,6 @@ public class RealVoltDB implements VoltDBInterface, RestoreAgent.Callback, HostM
                         // the partition leader, the transaction can be deadlocked if the host is shutdown. Since the host does not have
                         // any partition leaders, its shutdown won't trigger transaction repair process to beak up the dependency.
                         // Add a new ZK node to trigger transaction repair.
-                        // ZooKeeper callback and let the babysitter thread go through the repair process, break any dependencies on failed hosts
-                        // for rerouted transactions.
                         VoltZK.addTxnRestartTrigger(m_messenger.getZK());
                     }
                 }
