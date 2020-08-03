@@ -94,7 +94,7 @@ public class MpTerm implements Term
                 cacheCopy.put(e.getKey(), hsid);
 
                 //The master change is triggered via @MigratePartitionLeader
-                if (e.getValue().m_isMigratePartitionLeaderRequested && !(m_knownLeaders.get().contains(hsid))) {
+                if (e.getValue().m_isMigratePartitionLeaderRequested && (m_knownLeaders.get() == null || !m_knownLeaders.get().contains(hsid))) {
                     migratePartitionLeaderRequested = true;
                 }
             }
