@@ -274,9 +274,9 @@ public class RealVoltDB implements VoltDBInterface, RestoreAgent.Callback, HostM
     // Cluster settings reference and supplier
     final ClusterSettingsRef m_clusterSettings = new ClusterSettingsRef();
     private String m_buildString;
-    static final String m_defaultVersionString = "10.0.beta5";
+    static final String m_defaultVersionString = "10.0.beta8";
     // by default set the version to only be compatible with itself
-    static final String m_defaultHotfixableRegexPattern = "^\\Q10.0.beta5\\E\\z";
+    static final String m_defaultHotfixableRegexPattern = "^\\Q10.0.beta8\\E\\z";
     // these next two are non-static because they can be overrriden on the CLI for test
     private String m_versionString = m_defaultVersionString;
     private String m_hotfixableRegexPattern = m_defaultHotfixableRegexPattern;
@@ -1287,6 +1287,9 @@ public class RealVoltDB implements VoltDBInterface, RestoreAgent.Callback, HostM
             VoltZK.createStartActionNode(m_messenger.getZK(), m_messenger.getHostId(), m_config.m_startAction);
             validateStartAction();
 
+            // Race to write license to ZK, compare local copy with ZK's.
+            checkLicenseConsistency(m_messenger.getZK());
+
             if (m_rejoining) {
                 //grab rejoining lock before catalog read
                 Iv2RejoinCoordinator.acquireLock(m_messenger);
@@ -2184,6 +2187,45 @@ public class RealVoltDB implements VoltDBInterface, RestoreAgent.Callback, HostM
         }
     }
 
+    private void checkLicenseConsistency(ZooKeeper zk) {
+        // Community?
+        if (!MiscUtils.isPro()) {
+            return;
+        }
+
+        // Enterprise!
+        String vdbroot = m_config.m_voltdbRoot.getPath();
+        File destF = new VoltFile(vdbroot, Constants.LICENSE_FILE_NAME);
+        String destPath = destF.getAbsolutePath();
+        if (!destF.exists()) {
+            VoltDB.crashLocalVoltDB("Couldn't locate license file at " + destPath);
+        }
+        byte[] licenseBytes = null;
+        try {
+            licenseBytes = org.voltcore.utils.CoreUtils.urlToBytes(destPath);
+        } catch (Exception ex) {
+            VoltDB.crashLocalVoltDB("Hit unexpected failure while reading license file at " + destPath);
+        }
+        try {
+            try {
+                // Race to upload license.
+                zk.create(VoltZK.license, licenseBytes, Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+            } catch (KeeperException.NodeExistsException e) {
+                // If license node exists, compare the checksum with local license.
+                byte[] zkLicenseBytes = null;
+                zkLicenseBytes = zk.getData(VoltZK.license, null, null);
+                byte[] remoteHash = CatalogUtil.makeHash(zkLicenseBytes);
+                byte[] localHash = CatalogUtil.makeHash(licenseBytes);
+                if (!Arrays.equals(remoteHash, localHash)) {
+                    VoltDB.crashLocalVoltDB("Detected inconsistent license file in current node. "
+                            + "Please make sure license files under the following path on all nodes are the same: " + destPath);
+                }
+            }
+        } catch(Exception e) {
+            VoltDB.crashLocalVoltDB("Error while writing license to ZooKeeper: " + e);
+        }
+    }
+
     private class ConfigLogging implements Runnable {
 
         private void logConfigInfo() {
@@ -2725,9 +2767,9 @@ public class RealVoltDB implements VoltDBInterface, RestoreAgent.Callback, HostM
             //We will ignore the supplied or default deployment anyways.
             if (localDeploymentBytes != null && !m_config.m_deploymentDefault) {
                 byte[] deploymentHashHere =
-                        CatalogUtil.makeDeploymentHash(localDeploymentBytes);
+                        CatalogUtil.makeHash(localDeploymentBytes);
                 byte[] deploymentHash =
-                        CatalogUtil.makeDeploymentHash(deploymentBytesTemp);
+                        CatalogUtil.makeHash(deploymentBytesTemp);
                 if (!(Arrays.equals(deploymentHashHere, deploymentHash))) {
                     hostLog.warn("The locally provided deployment configuration did not " +
                             "match the configuration information found in the cluster.");
