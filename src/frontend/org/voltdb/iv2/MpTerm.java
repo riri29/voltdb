@@ -20,9 +20,13 @@ package org.voltdb.iv2;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.Map.Entry;
 import java.util.SortedSet;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 
 import org.apache.zookeeper_voltpatches.ZooKeeper;
 import org.voltcore.logging.VoltLogger;
@@ -41,8 +45,8 @@ public class MpTerm implements Term
 
     private final InitiatorMailbox m_mailbox;
     private final ZooKeeper m_zk;
-    private volatile SortedSet<Long> m_knownLeaders = ImmutableSortedSet.of();
-    private  HashMap<Integer, Long> m_cacheCopy = new HashMap<Integer, Long>();
+    private AtomicReference<SortedSet<Long>> m_knownLeaders = new AtomicReference<SortedSet<Long>>();
+    private AtomicReference<Map<Integer, Long>> m_cacheCopy = new AtomicReference<Map<Integer, Long>>();
     private boolean m_lastUpdateByMigration;
     public static enum RepairType {
         NORMAL(0),
@@ -82,15 +86,15 @@ public class MpTerm implements Term
         public void run(ImmutableMap<Integer, LeaderCallBackInfo> cache)
         {
             ImmutableSortedSet.Builder<Long> builder = ImmutableSortedSet.naturalOrder();
-            m_cacheCopy.clear();
+            HashMap<Integer, Long> cacheCopy = new HashMap<Integer, Long>();
             boolean migratePartitionLeaderRequested = false;
             for (Entry<Integer, LeaderCallBackInfo> e : cache.entrySet()) {
                 long hsid = e.getValue().m_HSId;
                 builder.add(hsid);
-                m_cacheCopy.put(e.getKey(), hsid);
+                cacheCopy.put(e.getKey(), hsid);
 
                 //The master change is triggered via @MigratePartitionLeader
-                if (e.getValue().m_isMigratePartitionLeaderRequested && !(m_knownLeaders.contains(hsid))) {
+                if (e.getValue().m_isMigratePartitionLeaderRequested && !(m_knownLeaders.get().contains(hsid))) {
                     migratePartitionLeaderRequested = true;
                 }
             }
@@ -99,16 +103,22 @@ public class MpTerm implements Term
                 tmLog.debug(m_whoami + "LeaderCache change updating leader list to: "
                         + CoreUtils.hsIdCollectionToString(updatedLeaders) + ". MigratePartitionLeader:" + migratePartitionLeaderRequested);
             }
-            m_knownLeaders = updatedLeaders;
+            m_knownLeaders.set(updatedLeaders);
             RepairType repairType = RepairType.NORMAL;
             if (migratePartitionLeaderRequested) {
                 repairType = RepairType.MIGRATE;
             }
             m_lastUpdateByMigration = migratePartitionLeaderRequested;
-            ((MpInitiatorMailbox)m_mailbox).updateReplicas(new ArrayList<Long>(m_knownLeaders), m_cacheCopy, repairType);
+            m_cacheCopy.set(cacheCopy);
+            ((MpInitiatorMailbox)m_mailbox).updateReplicas(new ArrayList<Long>(m_knownLeaders.get()), cacheCopy, repairType);
         }
     };
 
+    // m_leadersChangeHandler and m_txnRestartHandler are running on the same ZK callback thread, one at a time
+    // So they won't step on each other. MP transactions are repaired upon partition leader changes via m_leadersChangeHandler.
+    // If no partition leader changes occur, MP transactions won't be repaired since ZK won't invoke callback m_leadersChangeHandler.
+    // voltadmin stop command may hit the scenario: the host is shutdown after the last partition leader on the host is migrated away
+    // If there happens to be a rerouted transaction from the last leader migration, the transaction won't be repaired via m_leadersChangeHandler.
     LeaderCache.Callback m_txnRestartHandler = new LeaderCache.Callback() {
         @Override
         public void run(ImmutableMap<Integer, LeaderCallBackInfo> cache) {
@@ -116,7 +126,14 @@ public class MpTerm implements Term
                 VoltZK.removeTxnRestartTrigger(m_zk);
                 return;
             }
-            ((MpInitiatorMailbox)m_mailbox).updateReplicas(new ArrayList<Long>(m_knownLeaders), m_cacheCopy, RepairType.TXN_RESTART);
+            Set<Integer> hostIds = m_knownLeaders.get().stream().map(l->CoreUtils.getHostIdFromHSId(l)).collect(Collectors.toSet());
+            hostIds.removeAll(m_mailbox.m_messenger.getLiveHostIds());
+            // If any partition masters are still on dead host, let m_leadersChangeHandler process transaction repair
+            if (!hostIds.isEmpty()) {
+                return;
+            }
+            tmLog.info(m_whoami + "repair transaction after leader migration.");
+            ((MpInitiatorMailbox)m_mailbox).updateReplicas(new ArrayList<Long>(m_knownLeaders.get()), m_cacheCopy.get(), RepairType.TXN_RESTART);
         }
     };
 
@@ -176,7 +193,7 @@ public class MpTerm implements Term
         return new Supplier<List<Long>>() {
             @Override
             public List<Long> get() {
-                return new ArrayList<Long>(m_knownLeaders);
+                return new ArrayList<Long>(m_knownLeaders.get());
             }
         };
     }
