@@ -105,9 +105,6 @@ public class Collector {
         @Option(desc = "overwrite output file if it exists")
         boolean force= false;
 
-        @Option(desc = "redirect the binary content of collected files to console")
-        boolean stdout = false;
-
         @Option
         String libPathForTest = "";
 
@@ -572,7 +569,7 @@ public class Collector {
             File zipFile = new File(collectionFilePath);
             long sizeInByte = zipFile.length();
             String sizeStringInKB = String.format("%5.2f", (double)sizeInByte / 1000);
-            if (m_config.stdout) {
+            if (m_config.outputFile.equals("-")) {
                 InputStream input = new BufferedInputStream(new FileInputStream(collectionFilePath));
                 byte[] buffer = new byte[8192];
                 try {
