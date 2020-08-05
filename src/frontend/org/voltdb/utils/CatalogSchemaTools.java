@@ -127,7 +127,7 @@ public abstract class CatalogSchemaTools {
                     table_sb.append(" EXPORT TO TARGET ").append(streamTarget);
                 }
                 if (catalog_tbl.getIstopic()) {
-                    table_sb.append(" AS TOPIC ");
+                    table_sb.append(" TOPIC ");
                     String topicProfileName = catalog_tbl.getTopicprofile();
                     if (!StringUtils.isEmpty(topicProfileName)) {
                         table_sb.append(" PROFILE ").append(topicProfileName);

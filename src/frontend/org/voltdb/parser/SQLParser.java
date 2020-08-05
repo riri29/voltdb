@@ -1364,7 +1364,7 @@ public class SQLParser extends SQLPatternFactory
                     SPF.group(captureTokens, CAPTURE_STREAM_PARTITION_COLUMN, SPF.databaseObjectName())
                 ),
                 SPF.clause(
-                    SPF.token("as"),SPF.token("topic"),
+                    SPF.token("topic"),
                     SPF.optional(
                         SPF.clause(
                             SPF.token("profile"),

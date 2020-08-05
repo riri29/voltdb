@@ -1375,7 +1375,6 @@ bool VoltDBEngine::processCatalogAdditions(int64_t timestamp, bool updateReplica
                         currEngine->m_delegatesByName[tableName] = tcd;
                     }
                 }
-                vassert(tcd->getStreamedTable() == NULL);
             } else {
                 tcd = new TableCatalogDelegate(catalogTable->signature(), m_compactionThreshold, this);
                 // use the delegate to init the table and create indexes n' stuff
