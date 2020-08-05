@@ -755,6 +755,14 @@ public class RealVoltDB implements VoltDBInterface, RestoreAgent.Callback, HostM
         return nonEmptyPaths.build();
     }
 
+    private boolean checkExistence(Configuration config, String artifact) {
+        if ((new File(config.m_getOutput)).exists() && !config.m_forceGetCreate) {
+            consoleLog.fatal("Failed to save " + artifact + ", file already exists: " + config.m_getOutput);
+            return true;
+        }
+        return false;
+    }
+
     private int outputDeployment(Configuration config) {
         try {
             File configInfoDir = new VoltFile(config.m_voltdbRoot, Constants.CONFIG_DIR);
@@ -776,18 +784,21 @@ public class RealVoltDB implements VoltDBInterface, RestoreAgent.Callback, HostM
             // We don't have catalog context so host count is not there.
             String out;
             if ((out = CatalogUtil.getDeployment(dt, true)) != null) {
-                if ((new File(config.m_getOutput)).exists() && !config.m_forceGetCreate) {
-                    consoleLog.fatal("Failed to save deployment, file already exists: " + config.m_getOutput);
-                    return -1;
+                if (config.m_getOutput.equals("-")) {
+                    System.out.println(out);
+                } else {
+                    if (checkExistence(config, "deployment")) {
+                        return -1;
+                    }
+                    try (FileOutputStream fos = new FileOutputStream(config.m_getOutput)){
+                        fos.write(out.getBytes());
+                    } catch (IOException e) {
+                        consoleLog.fatal("Failed to write deployment to " + config.m_getOutput
+                                + " : " + e.getMessage());
+                        return -1;
+                    }
+                    consoleLog.info("Deployment configuration saved in " + config.m_getOutput);
                 }
-                try (FileOutputStream fos = new FileOutputStream(config.m_getOutput.trim())){
-                    fos.write(out.getBytes());
-                } catch (IOException e) {
-                    consoleLog.fatal("Failed to write deployment to " + config.m_getOutput
-                            + " : " + e.getMessage());
-                    return -1;
-                }
-                consoleLog.info("Deployment configuration saved in " + config.m_getOutput.trim());
             } else {
                 consoleLog.fatal("Failed to get configuration or deployment configuration is invalid.");
                 return -1;
@@ -801,21 +812,23 @@ public class RealVoltDB implements VoltDBInterface, RestoreAgent.Callback, HostM
     }
 
     private int outputSchema(Configuration config) {
-        if ((new File(config.m_getOutput)).exists() && !config.m_forceGetCreate) {
-            consoleLog.fatal("Failed to save schema file, file already exists: " + config.m_getOutput);
-            return -1;
-        }
-
         try {
             InMemoryJarfile catalogJar = CatalogUtil.loadInMemoryJarFile(MiscUtils.fileToBytes(new File (config.m_pathToCatalog)));
             String ddl = CatalogUtil.getAutoGenDDLFromJar(catalogJar);
-            try (FileOutputStream fos = new FileOutputStream(config.m_getOutput.trim())){
-                fos.write(ddl.getBytes());
-            } catch (IOException e) {
-                consoleLog.fatal("Failed to write schema to " + config.m_getOutput + " : " + e.getMessage());
-                return -1;
+            if (config.m_getOutput.equals("-")) {
+                System.out.println(ddl);
+            } else {
+                if (checkExistence(config, "schema")) {
+                    return -1;
+                }
+                try (FileOutputStream fos = new FileOutputStream(config.m_getOutput)){
+                    fos.write(ddl.getBytes());
+                } catch (IOException e) {
+                    consoleLog.fatal("Failed to write schema to " + config.m_getOutput + " : " + e.getMessage());
+                    return -1;
+                }
+                consoleLog.info("Schema saved in " + config.m_getOutput);
             }
-            consoleLog.info("Schema saved in " + config.m_getOutput.trim());
         } catch (IOException e) {
             consoleLog.fatal("Failed to load the catalog jar from " + config.m_pathToCatalog
                     + " : " + e.getMessage());
@@ -825,16 +838,19 @@ public class RealVoltDB implements VoltDBInterface, RestoreAgent.Callback, HostM
     }
 
     private int outputProcedures(Configuration config) {
-        File outputFile = new File(config.m_getOutput);
-        if (outputFile.exists() && !config.m_forceGetCreate) {
-            consoleLog.fatal("Failed to save classes, file already exists: " + config.m_getOutput);
-            return -1;
-        }
         try {
             InMemoryJarfile catalogJar = CatalogUtil.loadInMemoryJarFile(MiscUtils.fileToBytes(new File (config.m_pathToCatalog)));
             InMemoryJarfile filteredJar = CatalogUtil.getCatalogJarWithoutDefaultArtifacts(catalogJar);
-            filteredJar.writeToFile(outputFile);
-            consoleLog.info("Classes saved in " + outputFile.getPath());
+            if (config.m_getOutput.equals("-")) {
+                filteredJar.writeToStdout();
+            } else {
+                if (checkExistence(config, "classes")) {
+                    return -1;
+                }
+                File outputFile = new File(config.m_getOutput);
+                filteredJar.writeToFile(outputFile);
+                consoleLog.info("Classes saved in " + outputFile.getPath());
+            }
         } catch (IOException e) {
             consoleLog.fatal("Failed to read classes " + config.m_pathToCatalog
                     + " : " + e.getMessage());
@@ -851,9 +867,9 @@ public class RealVoltDB implements VoltDBInterface, RestoreAgent.Callback, HostM
             return -1;
         }
 
+        boolean useStdout = config.m_getOutput.equals("-");
         try {
-            if ((new File(config.m_getOutput)).exists() && !config.m_forceGetCreate) {
-                consoleLog.fatal("Failed to save license.xml, file already exists: " + config.m_getOutput);
+            if (!useStdout && checkExistence(config, "license")) {
                 return -1;
             }
             try {
@@ -866,7 +882,11 @@ public class RealVoltDB implements VoltDBInterface, RestoreAgent.Callback, HostM
                     byte[] buffer = new byte[1024];
                     int length;
                     while ((length = is.read(buffer)) > 0) {
-                        os.write(buffer, 0, length);
+                        if (useStdout) {
+                            System.out.write(buffer, 0, length);
+                        } else {
+                            os.write(buffer, 0, length);
+                        }
                     }
                 } finally {
                     is.close();
@@ -877,7 +897,9 @@ public class RealVoltDB implements VoltDBInterface, RestoreAgent.Callback, HostM
                         + " : " + e.getMessage());
                 return -1;
             }
-            consoleLog.info("license saved as " + config.m_getOutput.trim());
+            if (!useStdout) {
+                consoleLog.info("license saved as " + config.m_getOutput);
+            }
         } catch (Exception e) {
             consoleLog.fatal("Failed to get license. " + "Please make sure voltdbroot is a valid directory. " + e.getMessage());
             return -1;

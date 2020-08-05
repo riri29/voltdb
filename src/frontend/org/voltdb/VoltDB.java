@@ -58,7 +58,6 @@ import org.voltdb.export.E3ExecutorFactoryInterface;
 import org.voltdb.export.ExportManagerInterface;
 import org.voltdb.export.ExporterVersion;
 import org.voltdb.importer.ImportManager;
-import org.voltdb.VoltDBInterface;
 import org.voltdb.probe.MeshProber;
 import org.voltdb.settings.ClusterSettings;
 import org.voltdb.settings.NodeSettings;
@@ -866,7 +865,7 @@ public class VoltDB {
                         File licFH;
 
                         if (m_pathToLicense == null) {
-                            licFH = new VoltFile(m_voltdbRoot.getParent(), "license.xml");
+                            licFH = new VoltFile(m_voltdbRoot, "license.xml");
                             m_pathToLicense = licFH.getAbsolutePath();
                         } else {
                             licFH = new VoltFile(m_pathToLicense);
@@ -1022,11 +1021,11 @@ public class VoltDB {
         public boolean validate() {
             m_validateSuccess = true;
 
-            EnumSet<StartAction> hostNotRequred = EnumSet.of(StartAction.INITIALIZE,StartAction.GET);
+            EnumSet<StartAction> hostNotRequired = EnumSet.of(StartAction.INITIALIZE,StartAction.GET);
             if (m_startAction == null) {
                 generateFatalLog("The startup action is missing (either create, recover or rejoin).");
             }
-            if (m_leader == null && !hostNotRequred.contains(m_startAction)) {
+            if (m_leader == null && !hostNotRequired.contains(m_startAction)) {
                 generateFatalLog("The hostname is missing.");
             }
 
@@ -1053,7 +1052,7 @@ public class VoltDB {
             if (m_isPaused && pauseNotAllowed.contains(m_startAction)) {
                 generateFatalLog("Starting in admin mode is only allowed when using start, create or recover.");
             }
-            if (!hostNotRequred.contains(m_startAction) && m_coordinators.isEmpty()) {
+            if (!hostNotRequired.contains(m_startAction) && m_coordinators.isEmpty()) {
                 generateFatalLog("List of hosts is missing");
             }
 
