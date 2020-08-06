@@ -780,7 +780,7 @@ public class MpTransactionState extends TransactionState
             return false;
         }
 
-        Set<Integer> hostIds = masters.stream().map(l->CoreUtils.getHostIdFromHSId(l)).collect(Collectors.toSet());
+        Set<Integer> hostIds = masters.stream().map(CoreUtils::getHostIdFromHSId).collect(Collectors.toSet());
         for (Set<Long> hsids : m_remoteDeps.values()) {
             for (Long hsid : hsids) {
                 if (!hostIds.contains(CoreUtils.getHostIdFromHSId(hsid))) {

@@ -49,25 +49,26 @@ public class MpTerm implements Term
     private AtomicReference<Map<Integer, Long>> m_cacheCopy = new AtomicReference<Map<Integer, Long>>();
     private boolean m_lastUpdateByMigration;
     public static enum RepairType {
+        // Repair process from partition leader changes via LeaderAppointer
         NORMAL(0),
+        // Repair process from partition leader changes via migration
         MIGRATE(1),
+        // Repair process not from partition leader changes
         TXN_RESTART(2),
+        // Do not restart current transactions while repaired.
         SKIP_TXN_RESTART(4);
         final int type;
         RepairType(int type) {
             this.type = type;
         }
-        int get() {
-            return type;
-        }
         public boolean isMigrate() {
-            return type == MIGRATE.get() || type == SKIP_TXN_RESTART.get();
+            return this == MIGRATE|| this == SKIP_TXN_RESTART;
         }
         public boolean isTxnRestart() {
-            return type == TXN_RESTART.get();
+            return this == TXN_RESTART;
         }
         public boolean isSkipTxnRestart() {
-            return type == SKIP_TXN_RESTART.get();
+            return this == SKIP_TXN_RESTART;
         }
     }
 
@@ -126,10 +127,10 @@ public class MpTerm implements Term
                 VoltZK.removeTxnRestartTrigger(m_zk);
                 return;
             }
-            Set<Integer> hostIds = m_knownLeaders.get().stream().map(l->CoreUtils.getHostIdFromHSId(l)).collect(Collectors.toSet());
-            hostIds.removeAll(m_mailbox.m_messenger.getLiveHostIds());
             // If any partition masters are still on dead host, let m_leadersChangeHandler process transaction repair
-            if (!hostIds.isEmpty()) {
+            Set<Integer> liveHostIds = m_mailbox.m_messenger.getLiveHostIds();
+            if (!m_knownLeaders.get().stream().map(CoreUtils::getHostIdFromHSId).allMatch(liveHostIds::contains)) {
+                VoltZK.removeTxnRestartTrigger(m_zk);
                 return;
             }
             tmLog.info(m_whoami + "repair transaction after leader migration.");
